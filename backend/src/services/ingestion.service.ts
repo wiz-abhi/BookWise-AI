@@ -6,7 +6,21 @@ import { generateEmbeddings } from './embedding.service';
 import { query } from '../db';
 
 // Create Bull queue for ingestion jobs
-const ingestionQueue = new Queue('book-ingestion', process.env.REDIS_URL || 'redis://localhost:6379');
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+// Configure Redis options for Upstash/Production
+const redisOptions = {
+    maxRetriesPerRequest: null, // Required for Bull
+    enableReadyCheck: false,
+    tls: redisUrl.startsWith('rediss://') ? {
+        rejectUnauthorized: false // Necessary for some hosted Redis if certs aren't perfect, or remove if strict security needed
+    } : undefined
+};
+
+// Create Bull queue for ingestion jobs
+const ingestionQueue = new Queue('book-ingestion', redisUrl, {
+    redis: redisOptions
+});
 
 /**
  * Create an ingestion job

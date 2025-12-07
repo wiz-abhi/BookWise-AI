@@ -6,7 +6,7 @@ import { queryAPI } from '@/lib/api';
 import { MessageList } from '@/components/chat/MessageList';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { PersonaSelector } from '@/components/chat/PersonaSelector';
-import { BookOpen, Menu } from 'lucide-react';
+import { BookOpen, Menu, Sparkles } from 'lucide-react';
 
 export default function ChatPage() {
     const {
@@ -23,6 +23,23 @@ export default function ChatPage() {
     } = useChatStore();
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Mouse tracking for spotlight effect
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (containerRef.current) {
+                const { left, top } = containerRef.current.getBoundingClientRect();
+                const x = e.clientX - left;
+                const y = e.clientY - top;
+                containerRef.current.style.setProperty('--mouse-x', `${x}px`);
+                containerRef.current.style.setProperty('--mouse-y', `${y}px`);
+            }
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
 
     // Generate conversation ID if not exists
     useEffect(() => {
@@ -92,54 +109,69 @@ export default function ChatPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
-            {/* Header */}
-            <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                <div className="max-w-6xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <BookOpen className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                                BookBuddy
-                            </h1>
-                            {selectedBook && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {selectedBook.title}
-                                    {selectedBook.author && ` by ${selectedBook.author}`}
-                                </p>
-                            )}
-                        </div>
-                    </div>
+        <div
+            ref={containerRef}
+            className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden relative"
+        >
+            <div className="interactive-bg" />
 
-                    <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                        <Menu className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                    </button>
+            {/* Header */}
+            <header className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-40 glass-panel rounded-xl px-4 py-3 border-white/10 shadow-lg flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center shadow-inner">
+                        {selectedBook ? (
+                            <BookOpen className="w-4 h-4 text-indigo-400" />
+                        ) : (
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                        )}
+                    </div>
+                    <div>
+                        <h1 className="text-base font-bold text-white tracking-wide">
+                            {selectedBook ? selectedBook.title : 'General Chat'}
+                        </h1>
+                        <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                            {selectedBook ? `by ${selectedBook.author || 'Unknown'}` : 'Ask anything about your library'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center">
+                    {/* Compact Persona Selector in Header */}
+                    <PersonaSelector selected={persona} onChange={setPersona} compact={true} />
                 </div>
             </header>
 
-            {/* Persona Selector */}
-            <div className="border-b border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/50">
-                <div className="max-w-4xl mx-auto">
-                    <PersonaSelector selected={persona} onChange={setPersona} />
+            {/* Main Chat Area */}
+            <main className="flex-1 flex flex-col pt-40 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10">
+
+                {/* Messages Container */}
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center opacity-50 space-y-4">
+                            <Sparkles className="w-12 h-12 text-indigo-400/50" />
+                            <p className="text-gray-500 font-light">Start a conversation...</p>
+                        </div>
+                    ) : (
+                        <div className="pb-4">
+                            <MessageList messages={messages} />
+                            <div ref={messagesEndRef} />
+                        </div>
+                    )}
                 </div>
-            </div>
 
-            {/* Messages */}
-            <MessageList messages={messages} />
-            <div ref={messagesEndRef} />
-
-            {/* Input */}
-            <ChatInput
-                onSend={handleSendMessage}
-                isLoading={isLoading}
-                placeholder={
-                    selectedBook
-                        ? `Ask about "${selectedBook.title}"...`
-                        : 'Ask about your books...'
-                }
-            />
+                {/* Input Area */}
+                <div className="mt-4">
+                    <ChatInput
+                        onSend={handleSendMessage}
+                        isLoading={isLoading}
+                        placeholder={
+                            selectedBook
+                                ? `Ask about "${selectedBook.title}"...`
+                                : 'Ask about your books...'
+                        }
+                    />
+                </div>
+            </main>
         </div>
     );
 }

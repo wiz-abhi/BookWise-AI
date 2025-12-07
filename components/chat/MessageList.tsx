@@ -11,82 +11,71 @@ interface MessageListProps {
 
 export function MessageList({ messages }: MessageListProps) {
     if (messages.length === 0) {
-        return (
-            <div className="flex-1 flex items-center justify-center p-8">
-                <div className="text-center max-w-md">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                        <Sparkles className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        Start a Conversation
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Ask me anything about your uploaded books. I'll provide answers with citations!
-                    </p>
-                </div>
-            </div>
-        );
+        // Handled by parent container empty state, but keeping safe fallback
+        return null;
     }
 
     return (
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {messages.map((message) => (
+        <div className="flex flex-col space-y-6 pb-2">
+            {messages.map((message, idx) => (
                 <div
-                    key={message.id}
-                    className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'
-                        }`}
+                    key={message.id || idx}
+                    className={`flex gap-4 animate-fade-in ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                     {message.role === 'assistant' && (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <Bot className="w-5 h-5 text-white" />
+                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shadow-lg backdrop-blur-sm">
+                            <Bot className="w-5 h-5 text-indigo-400" />
                         </div>
                     )}
 
                     <div
-                        className={`flex-1 max-w-3xl ${message.role === 'user' ? 'flex justify-end' : ''
-                            }`}
+                        className={`flex-1 max-w-3xl ${message.role === 'user' ? 'flex justify-end' : ''}`}
                     >
                         <div
-                            className={`rounded-2xl p-4 ${message.role === 'user'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            className={`rounded-2xl p-5 shadow-xl backdrop-blur-sm border ${message.role === 'user'
+                                    ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-white/10'
+                                    : 'bg-white/5 text-gray-100 border-white/10 hover:bg-white/10 transition-colors'
                                 }`}
                         >
-                            <div className="prose dark:prose-invert max-w-none">
+                            <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-headings:text-white prose-a:text-indigo-300">
                                 <ReactMarkdown>{message.content}</ReactMarkdown>
                             </div>
 
                             {message.confidence !== undefined && (
-                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                    <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                                        <span>Confidence:</span>
-                                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div className="mt-4 pt-3 border-t border-white/10">
+                                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                                        <span className="font-medium tracking-wide uppercase">Confidence</span>
+                                        <div className="flex-1 h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-green-500 rounded-full transition-all"
+                                                className={`h-full rounded-full transition-all duration-1000 ${message.confidence > 0.8 ? 'bg-emerald-500' :
+                                                        message.confidence > 0.5 ? 'bg-yellow-500' : 'bg-red-500'
+                                                    }`}
                                                 style={{ width: `${message.confidence * 100}%` }}
                                             />
                                         </div>
-                                        <span>{Math.round(message.confidence * 100)}%</span>
+                                        <span className="font-mono">{Math.round(message.confidence * 100)}%</span>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {message.citations && message.citations.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                                    Sources
+                            <div className="mt-4 space-y-3 pl-2">
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                    <Sparkles className="w-3 h-3" /> Sources
                                 </p>
-                                {message.citations.map((citation, idx) => (
-                                    <CitationCard key={idx} citation={citation} index={idx} />
-                                ))}
+                                <div className="grid gap-3">
+                                    {message.citations.map((citation, idx) => (
+                                        <CitationCard key={idx} citation={citation} index={idx} />
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
 
                     {message.role === 'user' && (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
+                            <User className="w-5 h-5 text-indigo-300" />
                         </div>
                     )}
                 </div>

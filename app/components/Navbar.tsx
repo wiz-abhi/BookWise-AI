@@ -14,11 +14,6 @@ export default function Navbar() {
     const [isHoveringNav, setIsHoveringNav] = useState(false);
     const [isHoveringLink, setIsHoveringLink] = useState(false);
 
-    // Hide navbar on book reader page
-    if (pathname?.startsWith('/library/book/')) {
-        return null;
-    }
-
     useEffect(() => {
         const nav = navRef.current;
         if (!nav) return;
@@ -66,6 +61,11 @@ export default function Navbar() {
             });
         };
     }, []); // Hook dependency is empty, but we'll handle the event attachment better in the JSX for children.
+
+    // Hide navbar on book reader page
+    if (pathname?.startsWith('/library/book/')) {
+        return null;
+    }
 
     return (
         <nav

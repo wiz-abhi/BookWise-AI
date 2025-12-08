@@ -14,53 +14,15 @@ export default function Navbar() {
     const [isHoveringNav, setIsHoveringNav] = useState(false);
     const [isHoveringLink, setIsHoveringLink] = useState(false);
 
-    useEffect(() => {
-        const nav = navRef.current;
-        if (!nav) return;
-
-        const handleMouseMove = (e: MouseEvent) => {
-            const rect = nav.getBoundingClientRect();
+    const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+        if (navRef.current) {
+            const rect = navRef.current.getBoundingClientRect();
             setCursorPosition({
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top
             });
-        };
-
-        const handleMouseEnter = () => setIsHoveringNav(true);
-        const handleMouseLeave = () => setIsHoveringNav(false);
-
-        // Add event listeners to all interactive elements to trigger "magnify" state
-        const handleLinkEnter = () => setIsHoveringLink(true);
-        const handleLinkLeave = () => setIsHoveringLink(false);
-
-        nav.addEventListener('mousemove', handleMouseMove);
-        nav.addEventListener('mouseenter', handleMouseEnter);
-        nav.addEventListener('mouseleave', handleMouseLeave);
-
-        // Attach listeners to interactive children using delegation
-        // In a real app we might do this more granularly, but this works for the contained navbar
-        const interactiveElements = nav.querySelectorAll('a, button');
-        interactiveElements.forEach(el => {
-            el.addEventListener('mouseenter', handleLinkEnter);
-            el.addEventListener('mouseleave', handleLinkLeave);
-        });
-
-        // Re-attach if DOM changes (simplified for this scope, ideally utilize MutationObserver or specific Link wrappers)
-        // For this specific static navbar structure, one-time attach is mostly fine, 
-        // but let's wrap logic in a function if we needed re-runs. 
-        // Given React re-renders, we might miss dynamic updates. 
-        // Better approach: Pass `onMouseEnter={() => setIsHoveringLink(true)}` to NavLink components.
-
-        return () => {
-            nav.removeEventListener('mousemove', handleMouseMove);
-            nav.removeEventListener('mouseenter', handleMouseEnter);
-            nav.removeEventListener('mouseleave', handleMouseLeave);
-            interactiveElements.forEach(el => {
-                el.removeEventListener('mouseenter', handleLinkEnter);
-                el.removeEventListener('mouseleave', handleLinkLeave);
-            });
-        };
-    }, []); // Hook dependency is empty, but we'll handle the event attachment better in the JSX for children.
+        }
+    };
 
     // Hide navbar on book reader page
     if (pathname?.startsWith('/library/book/')) {
@@ -77,6 +39,9 @@ export default function Navbar() {
 
             <nav
                 ref={navRef}
+                onMouseMove={handleMouseMove}
+                onMouseEnter={() => setIsHoveringNav(true)}
+                onMouseLeave={() => setIsHoveringNav(false)}
                 className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-5xl transition-all duration-500 ease-out ${isHoveringNav ? 'cursor-none' : ''}`}
             >
                 {/* Custom Cursor Element - Magnifying Glass Style */}

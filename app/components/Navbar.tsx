@@ -4,13 +4,20 @@ import Link from 'next/link';
 import { useAuth } from './AuthProvider';
 import { BookOpen, LogOut, User } from 'lucide-react';
 import { useRef, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
     const { user, logout, isAuthenticated } = useAuth();
+    const pathname = usePathname();
     const navRef = useRef<HTMLElement>(null);
     const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
     const [isHoveringNav, setIsHoveringNav] = useState(false);
     const [isHoveringLink, setIsHoveringLink] = useState(false);
+
+    // Hide navbar on book reader page
+    if (pathname?.startsWith('/library/book/')) {
+        return null;
+    }
 
     useEffect(() => {
         const nav = navRef.current;

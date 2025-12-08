@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../db';
 import { optionalAuth, authenticateToken } from '../middleware/auth';
-import { deleteFile } from '../services/storage.service';
+import { deleteFile, downloadFile } from '../services/storage.service';
+import path from 'path';
 
 const router = Router();
 
@@ -225,6 +226,50 @@ router.get('/:userId/library', async (req: Request, res: Response) => {
         console.error('Get library error:', error);
         res.status(500).json({
             error: 'Failed to get library',
+            message: error.message,
+        });
+    }
+});
+
+
+/**
+ * GET /api/book/:id/file
+ * Serve book file content
+ */
+router.get('/:id/file', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const result = await query(
+            'SELECT file_uri, file_type, title FROM books WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
+        const book = result.rows[0];
+        const fileKey = book.file_uri;
+
+        // Determine content type based on file extension or stored type
+        let contentType = 'application/octet-stream';
+        if (book.file_type === 'pdf' || fileKey.endsWith('.pdf')) {
+            contentType = 'application/pdf';
+        } else if (book.file_type === 'epub' || fileKey.endsWith('.epub')) {
+            contentType = 'application/epub+zip';
+        }
+
+        const fileBuffer = await downloadFile(fileKey);
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `inline; filename="${book.title}.${book.file_type}"`);
+        res.send(fileBuffer);
+
+    } catch (error: any) {
+        console.error('Get book file error:', error);
+        res.status(500).json({
+            error: 'Failed to retrieve book file',
             message: error.message,
         });
     }

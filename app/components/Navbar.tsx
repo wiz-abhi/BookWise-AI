@@ -68,91 +68,99 @@ export default function Navbar() {
     }
 
     return (
-        <nav
-            ref={navRef}
-            className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-5xl transition-all duration-500 ease-out ${isHoveringNav ? 'cursor-none' : ''}`}
-        >
-            {/* Custom Cursor Element - Magnifying Glass Style */}
+        <>
+            {/* Scroll Fade Mask */}
             <div
-                className="pointer-events-none absolute bg-white/10 border border-white/40 rounded-full z-50 transition-all duration-150 ease-out flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)] opacity-0 data-[visible=true]:opacity-100"
-                data-visible={isHoveringNav}
-                style={{
-                    width: isHoveringLink ? '48px' : '32px', // Expands slightly on links
-                    height: isHoveringLink ? '48px' : '32px',
-                    transform: `translate(${cursorPosition.x - (isHoveringLink ? 24 : 16)}px, ${cursorPosition.y - (isHoveringLink ? 24 : 16)}px)`,
-                }}
+                className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-black via-black/80 to-transparent z-40 pointer-events-none transition-opacity duration-300"
+                aria-hidden="true"
             />
 
-            {/* "Radiant" Navbar Container */}
-            <div className="glass-nav rounded-2xl px-6 py-3 transition-all duration-500 hover:bg-white/10 border border-white/20 shadow-[0_0_20px_-5px_rgba(255,255,255,0.5)] hover:shadow-[0_0_40px_-5px_rgba(255,255,255,0.7)] group">
-                {/* Simulated "Sparkles" or "Rays" via pseudo-elements can be tricky in Tailwind, keeping it clean with strong shadows */}
+            <nav
+                ref={navRef}
+                className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-5xl transition-all duration-500 ease-out ${isHoveringNav ? 'cursor-none' : ''}`}
+            >
+                {/* Custom Cursor Element - Magnifying Glass Style */}
+                <div
+                    className="pointer-events-none absolute bg-white/10 border border-white/40 rounded-full z-50 transition-all duration-150 ease-out flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)] opacity-0 data-[visible=true]:opacity-100"
+                    data-visible={isHoveringNav}
+                    style={{
+                        width: isHoveringLink ? '48px' : '32px', // Expands slightly on links
+                        height: isHoveringLink ? '48px' : '32px',
+                        transform: `translate(${cursorPosition.x - (isHoveringLink ? 24 : 16)}px, ${cursorPosition.y - (isHoveringLink ? 24 : 16)}px)`,
+                    }}
+                />
 
-                <div className="flex justify-between items-center relative z-10">
-                    {/* Logo Section */}
-                    <Link
-                        href="/"
-                        className="flex items-center gap-3 group/logo"
-                        onMouseEnter={() => setIsHoveringLink(true)}
-                        onMouseLeave={() => setIsHoveringLink(false)}
-                    >
-                        <div className="p-2 rounded-lg bg-indigo-500/20 group-hover/logo:bg-indigo-500/40 transition-colors border border-indigo-400/30">
-                            <BookOpen className="w-5 h-5 text-indigo-300 group-hover/logo:text-white transition-colors" />
+                {/* "Radiant" Navbar Container */}
+                <div className="glass-nav rounded-2xl px-6 py-3 transition-all duration-500 hover:bg-white/10 border border-white/20 shadow-[0_0_20px_-5px_rgba(255,255,255,0.5)] hover:shadow-[0_0_40px_-5px_rgba(255,255,255,0.7)] group">
+                    {/* Simulated "Sparkles" or "Rays" via pseudo-elements can be tricky in Tailwind, keeping it clean with strong shadows */}
+
+                    <div className="flex justify-between items-center relative z-10">
+                        {/* Logo Section */}
+                        <Link
+                            href="/"
+                            className="flex items-center gap-3 group/logo"
+                            onMouseEnter={() => setIsHoveringLink(true)}
+                            onMouseLeave={() => setIsHoveringLink(false)}
+                        >
+                            <div className="p-2 rounded-lg bg-indigo-500/20 group-hover/logo:bg-indigo-500/40 transition-colors border border-indigo-400/30">
+                                <BookOpen className="w-5 h-5 text-indigo-300 group-hover/logo:text-white transition-colors" />
+                            </div>
+                            <span className="text-xl font-bold text-white tracking-wide drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                                BookBuddy
+                            </span>
+                        </Link>
+
+                        {/* Navigation Links - Desktop */}
+                        <div className="hidden md:flex items-center gap-2">
+                            <NavLink href="/" setHover={setIsHoveringLink}>Home</NavLink>
+                            <NavLink href="/chat" setHover={setIsHoveringLink}>Chat</NavLink>
+                            <NavLink href="/upload" setHover={setIsHoveringLink}>Upload</NavLink>
+                            {isAuthenticated && <NavLink href="/library" setHover={setIsHoveringLink}>Library</NavLink>}
                         </div>
-                        <span className="text-xl font-bold text-white tracking-wide drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                            BookBuddy
-                        </span>
-                    </Link>
 
-                    {/* Navigation Links - Desktop */}
-                    <div className="hidden md:flex items-center gap-2">
-                        <NavLink href="/" setHover={setIsHoveringLink}>Home</NavLink>
-                        <NavLink href="/chat" setHover={setIsHoveringLink}>Chat</NavLink>
-                        <NavLink href="/upload" setHover={setIsHoveringLink}>Upload</NavLink>
-                        {isAuthenticated && <NavLink href="/library" setHover={setIsHoveringLink}>Library</NavLink>}
-                    </div>
-
-                    {/* Auth Section */}
-                    <div className="flex items-center gap-4">
-                        {isAuthenticated ? (
-                            <div className="flex items-center gap-4 pl-4 border-l border-white/20">
-                                <div className="hidden sm:flex items-center gap-2 text-sm text-white/80 font-medium">
-                                    <User className="w-4 h-4" />
-                                    <span className="truncate max-w-[150px]">{user?.name || user?.email}</span>
+                        {/* Auth Section */}
+                        <div className="flex items-center gap-4">
+                            {isAuthenticated ? (
+                                <div className="flex items-center gap-4 pl-4 border-l border-white/20">
+                                    <div className="hidden sm:flex items-center gap-2 text-sm text-white/80 font-medium">
+                                        <User className="w-4 h-4" />
+                                        <span className="truncate max-w-[150px]">{user?.name || user?.email}</span>
+                                    </div>
+                                    <button
+                                        onClick={logout}
+                                        onMouseEnter={() => setIsHoveringLink(true)}
+                                        onMouseLeave={() => setIsHoveringLink(false)}
+                                        className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-red-400 transition-colors"
+                                        title="Logout"
+                                    >
+                                        <LogOut className="w-5 h-5" />
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={logout}
-                                    onMouseEnter={() => setIsHoveringLink(true)}
-                                    onMouseLeave={() => setIsHoveringLink(false)}
-                                    className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-red-400 transition-colors"
-                                    title="Logout"
-                                >
-                                    <LogOut className="w-5 h-5" />
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3 pl-4 border-l border-white/20">
-                                <Link
-                                    href="/login"
-                                    onMouseEnter={() => setIsHoveringLink(true)}
-                                    onMouseLeave={() => setIsHoveringLink(false)}
-                                    className="text-sm font-medium text-white/80 hover:text-white transition-all hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-                                >
-                                    Login
-                                </Link>
-                                <Link
-                                    href="/signup"
-                                    onMouseEnter={() => setIsHoveringLink(true)}
-                                    onMouseLeave={() => setIsHoveringLink(false)}
-                                    className="px-5 py-2 rounded-xl bg-white text-black text-sm font-bold transition-all shadow-[0_0_15px_-3px_rgba(255,255,255,0.4)] hover:shadow-[0_0_20px_0px_rgba(255,255,255,0.6)] hover:scale-105"
-                                >
-                                    Sign up
-                                </Link>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="flex items-center gap-3 pl-4 border-l border-white/20">
+                                    <Link
+                                        href="/login"
+                                        onMouseEnter={() => setIsHoveringLink(true)}
+                                        onMouseLeave={() => setIsHoveringLink(false)}
+                                        className="text-sm font-medium text-white/80 hover:text-white transition-all hover:scale-105 hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+                                    >
+                                        Login
+                                    </Link>
+                                    <Link
+                                        href="/signup"
+                                        onMouseEnter={() => setIsHoveringLink(true)}
+                                        onMouseLeave={() => setIsHoveringLink(false)}
+                                        className="px-5 py-2 rounded-xl bg-white text-black text-sm font-bold transition-all shadow-[0_0_15px_-3px_rgba(255,255,255,0.4)] hover:shadow-[0_0_20px_0px_rgba(255,255,255,0.6)] hover:scale-105"
+                                    >
+                                        Sign up
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </nav>
+            </nav>
+        </>
     );
 }
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
+import ReactMarkdown from 'react-markdown';
 
 // Dynamically import PDFViewer with no SSR to avoid DOMMatrix error
 const PDFViewer = dynamic(() => import('@/components/library/PDFViewer'), {
@@ -282,8 +283,8 @@ export default function BookReaderPage() {
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                 {aiResponse ? (
-                                    <div className="prose prose-invert prose-sm max-w-none">
-                                        <p>{aiResponse}</p>
+                                    <div className="prose prose-invert prose-sm max-w-none text-gray-300">
+                                        <ReactMarkdown>{aiResponse}</ReactMarkdown>
                                     </div>
                                 ) : (
                                     <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-3 opacity-60">

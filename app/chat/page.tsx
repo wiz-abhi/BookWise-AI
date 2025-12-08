@@ -142,7 +142,7 @@ export default function ChatPage() {
             </header>
 
             {/* Main Chat Area */}
-            <main className="flex-1 flex flex-col pt-40 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10">
+            <main className="flex-1 flex flex-col h-full pt-32 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
 
                 {/* Messages Container */}
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
@@ -154,7 +154,7 @@ export default function ChatPage() {
                     ) : (
                         <div className="pb-4">
                             <MessageList messages={messages} />
-                            <div ref={messagesEndRef} />
+                            <div ref={messagesEndRef} className="pt-2" />
                         </div>
                     )}
                 </div>

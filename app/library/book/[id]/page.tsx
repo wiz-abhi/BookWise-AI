@@ -14,11 +14,13 @@ import {
     MicOff,
     Sparkles,
     Square,
-    X
+    X,
+    Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '../../../components/AuthProvider';
 
 // Dynamically import PDFViewer with no SSR to avoid DOMMatrix error
 const PDFViewer = dynamic(() => import('@/components/library/PDFViewer'), {
@@ -33,7 +35,8 @@ const PDFViewer = dynamic(() => import('@/components/library/PDFViewer'), {
 export default function BookReaderPage() {
     const params = useParams();
     const router = useRouter();
-    const { selectedBook, setSelectedBook, userId } = useChatStore();
+    const { userId, selectedBook, setSelectedBook } = useChatStore();
+    const { loading: authLoading } = useAuth();
 
     // PDF State
     const [numPages, setNumPages] = useState<number | null>(null);
@@ -58,6 +61,9 @@ export default function BookReaderPage() {
     // Restore selectedBook on reload
     useEffect(() => {
         const loadBook = async () => {
+            // Wait for auth to be ready
+            if (authLoading) return;
+
             if (!selectedBook && params.id) {
                 try {
                     // Fetch library to find the book
@@ -76,7 +82,7 @@ export default function BookReaderPage() {
             }
         };
         loadBook();
-    }, [selectedBook, params.id, userId, setSelectedBook]);
+    }, [selectedBook, params.id, userId, setSelectedBook, authLoading]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -212,6 +218,14 @@ export default function BookReaderPage() {
             setIsVoiceActive(true);
         }
     };
+
+    if (authLoading) {
+        return (
+            <div className="h-screen bg-neutral-900 flex items-center justify-center text-indigo-400">
+                <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="h-screen bg-neutral-900 text-gray-100 flex flex-col overflow-hidden" onMouseUp={handleTextSelection}>

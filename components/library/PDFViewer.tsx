@@ -37,6 +37,11 @@ export default function PDFViewer({
                     file={fileUrl}
                     onLoadSuccess={onDocumentLoadSuccess}
                     className="shadow-2xl"
+                    options={{
+                        cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+                        cMapPacked: true,
+                        disableRange: true, // Often helps with "Access to storage" restricted environments
+                    }}
                     loading={
                         <div className="flex bg-white/5 w-[600px] h-[800px] items-center justify-center text-gray-400 animate-pulse">
                             Loading PDF...

@@ -39,7 +39,14 @@ if (STORAGE_TYPE === 'gcs') {
             storageOptions.credentials = JSON.parse(credentialsJson);
             console.log('🔑 Loaded GCS credentials from environment variable');
         } catch (e) {
-            console.error('❌ Failed to parse GCS_CREDENTIALS JSON');
+            console.warn('⚠️ Standard JSON parse failed, trying Base64 decode for GCS_CREDENTIALS...');
+            try {
+                const decodedJson = Buffer.from(credentialsJson, 'base64').toString('utf-8');
+                storageOptions.credentials = JSON.parse(decodedJson);
+                console.log('🔑 Loaded Base64-encoded GCS credentials');
+            } catch (base64Error) {
+                console.error('❌ Failed to parse GCS_CREDENTIALS (Invalid JSON or Base64)');
+            }
         }
     } else if (process.env.GCS_KEY_FILE) {
         storageOptions.keyFilename = process.env.GCS_KEY_FILE;

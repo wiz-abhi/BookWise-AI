@@ -161,15 +161,27 @@ export default function BookReaderPage() {
         }
     };
 
+    // Strip Markdown for cleaner speech
+    const stripMarkdown = (text: string) => {
+        return text
+            .replace(/#{1,6}\s?/g, '') // Remove headers
+            .replace(/\*\*/g, '')      // Remove bold
+            .replace(/\*/g, '')        // Remove italic
+            .replace(/`/g, '')         // Remove code
+            .replace(/\[\d+\]/g, '')   // Remove citations
+            .replace(/\n/g, '. ')      // Pause on newlines
+            .trim();
+    };
+
     const typeWriterEffect = (text: string) => {
         let i = 0;
-        const speed = 30; // ms per char
+        const speed = 20; // Slightly faster
 
         const type = () => {
             if (stopTypingRef.current) return;
 
             if (i < text.length) {
-                setAiResponse(prev => prev + text.charAt(i));
+                setAiResponse(text.substring(0, i + 1));
                 i++;
                 setTimeout(type, speed);
             }
@@ -180,7 +192,10 @@ export default function BookReaderPage() {
     const speakResponse = (text: string) => {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel(); // Cancel previous
-            const utterance = new SpeechSynthesisUtterance(text);
+            const cleanText = stripMarkdown(text);
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
             utterance.onstart = () => setIsSpeaking(true);
             utterance.onend = () => setIsSpeaking(false);
             utterance.onerror = () => setIsSpeaking(false);
@@ -281,7 +296,7 @@ export default function BookReaderPage() {
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            <div className="flex-1 overflow-y-auto p-4 pt-4 space-y-4">
                                 {aiResponse ? (
                                     <div className="prose prose-invert prose-sm max-w-none text-gray-300">
                                         <ReactMarkdown>{aiResponse}</ReactMarkdown>

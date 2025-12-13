@@ -26,7 +26,7 @@ export async function generateResponse(
     query: string,
     context: string,
     systemPrompt?: string,
-    modelName: string = 'gemini-2.5-flash-preview-09-2025'
+    modelName: string = 'gemini-2.5-flash'
 ): Promise<string> {
     try {
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -42,12 +42,9 @@ export async function generateResponse(
         console.error('LLM generation error:', error);
 
         // Fallback to other models if primary fails
-        if (modelName === 'gemini-2.5-flash-preview-09-2025') {
-            console.log('Falling back to Gemini 1.5 Flash...');
-            return generateResponse(query, context, systemPrompt, 'gemini-1.5-flash');
-        } else if (modelName === 'gemini-1.5-flash') {
-            console.log('Falling back to Gemini 1.5 Pro...');
-            return generateResponse(query, context, systemPrompt, 'gemini-1.5-pro');
+        if (modelName === 'gemini-2.5-flash') {
+            console.log('Falling back to Gemini 2.5 Flash Lite...');
+            return generateResponse(query, context, systemPrompt, 'gemini-2.5-flash-lite');
         }
 
         throw new Error('Failed to generate response from LLM');
@@ -62,7 +59,7 @@ export async function generateStructuredResponse(
     context: string,
     citations: Citation[],
     systemPrompt?: string,
-    modelName: string = 'gemini-2.5-flash-preview-09-2025'
+    modelName: string = 'gemini-2.5-flash'
 ): Promise<RAGResponse> {
     try {
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -121,18 +118,11 @@ Confidence should be between 0 and 1, where 1 is completely confident.`;
     } catch (error: any) {
         console.error('Structured response generation error:', error);
 
-        // Check if it's a rate limit error (429)
-        if (error.status === 429) {
-            console.warn('⚠️ Rate limit exceeded, trying fallback models...');
-
-            // Try fallback models in order
-            if (modelName === 'gemini-2.5-flash-preview-09-2025') {
-                console.log('Falling back to Gemini 1.5 Flash...');
-                return generateStructuredResponse(query, context, citations, systemPrompt, 'gemini-1.5-flash');
-            } else if (modelName === 'gemini-1.5-flash') {
-                console.log('Falling back to Gemini 1.5 Pro...');
-                return generateStructuredResponse(query, context, citations, systemPrompt, 'gemini-1.5-pro');
-            }
+        // Check if it's a rate limit error (429) or just general error
+        if (modelName === 'gemini-2.5-flash') {
+            console.warn('⚠️ Primary model failed, trying fallback...');
+            console.log('Falling back to Gemini 2.5 Flash Lite...');
+            return generateStructuredResponse(query, context, citations, systemPrompt, 'gemini-2.5-flash-lite');
         }
 
         // If all models fail or it's a different error, return a fallback response
@@ -142,5 +132,58 @@ Confidence should be between 0 and 1, where 1 is completely confident.`;
             citations,
             confidence: 0.0,
         };
+    }
+}
+
+/**
+ * FAST Intent Classification
+ * Determines if a query requires RAG (SEARCH) or just LLM (CHAT)
+ */
+export async function classifyQueryIntent(
+    query: string,
+    modelName: string = 'gemini-2.5-flash' // Use fastest model
+): Promise<'SEARCH' | 'CHAT'> {
+    try {
+        const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+                temperature: 0.1, // Deterministic
+                maxOutputTokens: 10,
+            }
+        });
+
+        const prompt = `You are a router. Classify the user's query into one of two categories:
+1. SEARCH: The user is asking for specific information, facts, summaries, or details that would be found in a book or document.
+2. CHAT: The user is greeting, thanking, asking about you, or making small talk that doesn't require looking up external information.
+
+Return ONLY the word "SEARCH" or "CHAT".
+
+Query: "Hello there"
+Intent: CHAT
+
+Query: "Who is the main character?"
+Intent: SEARCH
+
+Query: "Summarize chapter 1"
+Intent: SEARCH
+
+Query: "Thanks for the help"
+Intent: CHAT
+
+Query: "What is the theme of this book?"
+Intent: SEARCH
+
+Query: "${query}"
+Intent:`;
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().trim().toUpperCase();
+
+        if (text.includes('SEARCH')) return 'SEARCH';
+        return 'CHAT';
+
+    } catch (error) {
+        console.error('Intent classification failed, defaulting to SEARCH:', error);
+        return 'SEARCH'; // Fail safe to searching
     }
 }

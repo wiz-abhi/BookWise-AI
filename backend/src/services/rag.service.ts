@@ -1,5 +1,5 @@
 import { searchAndRerank, SearchResult } from './vectordb.service';
-import { generateStructuredResponse, Citation, RAGResponse } from './llm.service';
+import { generateStructuredResponse, Citation, RAGResponse, classifyQueryIntent, generateResponse } from './llm.service';
 
 const SYSTEM_PROMPT = `You are BookBuddy — an intelligent and articulate AI reading companion.
 Your goal is to provide **natural, synthesized, and well-structured** answers based on the provided book excerpts.
@@ -32,7 +32,29 @@ export async function ragQuery(
 
     console.log(`🔍 RAG Query: "${query}" (k=${k}, persona=${persona})`);
 
-    // Step 1: Retrieve relevant chunks
+    // Step 1: Check Intent
+    const intent = await classifyQueryIntent(query);
+    console.log(`🧠 Query Intent: ${intent}`);
+
+    // If CHAT, skip search and just chat
+    if (intent === 'CHAT') {
+        const chatSystemPrompt = `You are BookBuddy, a friendly AI reading companion. 
+The user is engaging in casual conversation. Respond naturally, warmly, and briefly. 
+Do NOT try to look up book facts. Just chat.
+If the user asks something that requires book knowledge but you misclassified it, politely ask them to specify which book they are talking about.`;
+
+        const fullPrompt = userMemory ? `${chatSystemPrompt}\n\nUser Context: ${userMemory}` : chatSystemPrompt;
+
+        const answer = await generateResponse(query, "No book context needed.", fullPrompt);
+
+        return {
+            answerText: answer,
+            citations: [],
+            confidence: 1.0,
+        };
+    }
+
+    // Step 2: Retrieve relevant chunks (SEARCH Intent)
     const searchResults = await searchAndRerank(query, {
         bookId,
         limit: k,

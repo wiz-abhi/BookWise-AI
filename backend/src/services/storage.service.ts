@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { Client as MinioClient } from 'minio';
+import { Storage } from '@google-cloud/storage';
 
 const STORAGE_TYPE = process.env.STORAGE_TYPE || 'local';
 const LOCAL_STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || './uploads';
@@ -18,7 +19,21 @@ if (STORAGE_TYPE === 'minio') {
     });
 }
 
-const BUCKET_NAME = process.env.MINIO_BUCKET || 'bookbuddy';
+// Google Cloud Storage client
+let gcsClient: Storage | null = null;
+let gcsBucket: any = null;
+
+if (STORAGE_TYPE === 'gcs') {
+    if (!process.env.GCS_KEY_FILE && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        console.warn('⚠️ GCS_KEY_FILE not provided. GCS may fail if not running in a GCP environment.');
+    }
+    gcsClient = new Storage({
+        keyFilename: process.env.GCS_KEY_FILE,
+        projectId: process.env.GCS_PROJECT_ID,
+    });
+}
+
+const BUCKET_NAME = process.env.MINIO_BUCKET || process.env.GCS_BUCKET_NAME || 'bookbuddy';
 
 /**
  * Initialize storage (create directories or buckets)
@@ -36,6 +51,14 @@ export async function initializeStorage(): Promise<void> {
             console.log(`📦 MinIO bucket created: ${BUCKET_NAME}`);
         } else {
             console.log(`📦 MinIO bucket exists: ${BUCKET_NAME}`);
+        }
+    } else if (STORAGE_TYPE === 'gcs' && gcsClient) {
+        gcsBucket = gcsClient.bucket(BUCKET_NAME);
+        const [exists] = await gcsBucket.exists();
+        if (exists) {
+            console.log(`📦 GCS bucket exists: ${BUCKET_NAME}`);
+        } else {
+            console.log(`⚠️ GCS bucket ${BUCKET_NAME} does not exist. Please create it in GCP Console.`);
         }
     }
 }
@@ -59,6 +82,10 @@ export async function uploadFile(
     } else if (STORAGE_TYPE === 'minio' && minioClient) {
         await minioClient.putObject(BUCKET_NAME, fileKey, file);
         return fileKey;
+    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
+        const fileObj = gcsBucket.file(fileKey);
+        await fileObj.save(file);
+        return fileKey;
     }
 
     throw new Error('Invalid storage configuration');
@@ -80,6 +107,9 @@ export async function downloadFile(fileKey: string): Promise<Buffer> {
             stream.on('end', () => resolve(Buffer.concat(chunks)));
             stream.on('error', reject);
         });
+    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
+        const [buffer] = await gcsBucket.file(fileKey).download();
+        return buffer;
     }
 
     throw new Error('Invalid storage configuration');
@@ -94,6 +124,8 @@ export async function deleteFile(fileKey: string): Promise<void> {
         await fs.unlink(filePath);
     } else if (STORAGE_TYPE === 'minio' && minioClient) {
         await minioClient.removeObject(BUCKET_NAME, fileKey);
+    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
+        await gcsBucket.file(fileKey).delete().catch((e: any) => console.warn('GCS delete warning:', e.message));
     }
 }
 
@@ -106,6 +138,13 @@ export async function getFileUrl(fileKey: string): Promise<string> {
     } else if (STORAGE_TYPE === 'minio' && minioClient) {
         // Generate presigned URL (valid for 24 hours)
         return await minioClient.presignedGetObject(BUCKET_NAME, fileKey, 24 * 60 * 60);
+    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
+        const [url] = await gcsBucket.file(fileKey).getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        });
+        return url;
     }
 
     throw new Error('Invalid storage configuration');

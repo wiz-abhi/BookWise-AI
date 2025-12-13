@@ -16,7 +16,8 @@ import {
     Heart,
     Feather,
     Rocket,
-    GraduationCap
+    GraduationCap,
+    Trash2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -102,6 +103,21 @@ export default function LibraryPage() {
     const handleOpenBook = (book: EnhancedBook) => {
         setSelectedBook(book);
         router.push(`/library/book/${book.id}`);
+    };
+
+    const handleDeleteBook = async (e: React.MouseEvent, bookId: string) => {
+        e.stopPropagation(); // Prevent opening book
+        if (!confirm('Are you sure you want to delete this book? This cannot be undone.')) return;
+
+        try {
+            await userAPI.deleteBook(bookId);
+            setBooks(books.filter(b => b.id !== bookId));
+            // Also update selected book if it's the one being deleted
+            // if (selectedBook?.id === bookId) setSelectedBook(null); 
+        } catch (error) {
+            console.error('Failed to delete book:', error);
+            alert('Failed to delete book. Please try again.');
+        }
     };
 
     return (
@@ -240,9 +256,16 @@ export default function LibraryPage() {
                                                 </div>
 
                                                 {/* Hover Overlay */}
-                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px] flex flex-col items-center justify-center p-4">
-                                                    <button className="px-4 py-2 bg-white text-black text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all">
+                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px] flex flex-col items-center justify-center p-4 gap-3">
+                                                    <button className="px-4 py-2 bg-white text-black text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all hover:bg-gray-200">
                                                         Read Now
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDeleteBook(e, book.id)}
+                                                        className="p-2 bg-red-500/20 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all transform scale-90 group-hover:scale-100"
+                                                        title="Delete Book"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                             </div>

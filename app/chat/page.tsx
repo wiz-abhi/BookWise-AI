@@ -119,18 +119,14 @@ export default function ChatPage() {
             <header className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-40 glass-panel rounded-xl px-4 py-3 border-white/10 shadow-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center shadow-inner">
-                        {selectedBook ? (
-                            <BookOpen className="w-4 h-4 text-indigo-400" />
-                        ) : (
-                            <Sparkles className="w-4 h-4 text-purple-400" />
-                        )}
+                        <Sparkles className="w-4 h-4 text-purple-400" />
                     </div>
                     <div>
                         <h1 className="text-base font-bold text-white tracking-wide">
-                            {selectedBook ? selectedBook.title : 'General Chat'}
+                            AI Chat
                         </h1>
                         <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                            {selectedBook ? `by ${selectedBook.author || 'Unknown'}` : 'Ask anything about your library'}
+                            Ask anything about your library
                         </p>
                     </div>
                 </div>

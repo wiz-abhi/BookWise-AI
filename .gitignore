@@ -15,6 +15,7 @@ build/
 .env
 backend/.env
 backend/.env.local
+backend/book-pdf.json
 .env.production
 .env.development
 

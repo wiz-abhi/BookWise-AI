@@ -124,6 +124,11 @@ export const userAPI = {
         const response = await api.get(`/user/${userId}/library`);
         return response.data;
     },
+
+    async deleteBook(bookId: string) {
+        const response = await api.delete(`/user/book/${bookId}`);
+        return response.data;
+    },
 };
 
 export default api;

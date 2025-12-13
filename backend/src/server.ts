@@ -1,17 +1,15 @@
+import './env'; // M ust be first
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
+// dotenv loaded in ./env
 import path from 'path';
 import { initializeStorage } from './services/storage.service';
 import uploadRoutes from './routes/upload';
 import queryRoutes from './routes/query';
 import userRoutes from './routes/user';
 import authRoutes from './routes/auth';
-
-// Load environment variables from root directory
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;

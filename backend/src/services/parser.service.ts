@@ -1,6 +1,9 @@
 import pdfParse from 'pdf-parse';
 import EPub from 'epub2';
 import { promisify } from 'util';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 
 export interface ParsedDocument {
     text: string;
@@ -63,57 +66,77 @@ export async function parsePDF(buffer: Buffer): Promise<ParsedDocument> {
  * Parse EPUB file
  */
 export async function parseEPUB(buffer: Buffer): Promise<ParsedDocument> {
-    return new Promise((resolve, reject) => {
-        try {
-            const epub = new EPub(buffer);
+    const tempFilePath = path.join(os.tmpdir(), `epub-${Date.now()}-${Math.random().toString(36).substring(7)}.epub`);
 
-            epub.on('end', async () => {
-                const pages: PageContent[] = [];
-                let fullText = '';
-                let pageNumber = 1;
+    try {
+        await fs.writeFile(tempFilePath, buffer);
 
-                // Get all chapters
-                const flow = epub.flow;
+        return await new Promise((resolve, reject) => {
+            try {
+                const epub = new EPub(tempFilePath);
 
-                for (const chapter of flow) {
-                    const getChapterAsync = promisify(epub.getChapter.bind(epub));
-                    const chapterText = await getChapterAsync(chapter.id);
+                epub.on('end', async () => {
+                    const pages: PageContent[] = [];
+                    let fullText = '';
+                    let pageNumber = 1;
 
-                    // Remove HTML tags
-                    const cleanText = chapterText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                    // Get all chapters
+                    const flow = epub.flow;
 
-                    pages.push({
-                        pageNumber: pageNumber++,
-                        text: cleanText,
-                        chapter: chapter.title,
+                    for (const chapter of flow) {
+                        if (!chapter.id) continue;
+
+                        const getChapterAsync = promisify(epub.getChapter.bind(epub));
+                        const chapterText = await getChapterAsync(chapter.id);
+
+                        if (!chapterText) continue;
+
+                        // Remove HTML tags
+                        const cleanText = chapterText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+                        if (cleanText.length > 0) {
+                            pages.push({
+                                pageNumber: pageNumber++,
+                                text: cleanText,
+                                chapter: chapter.title,
+                            });
+                            fullText += cleanText + '\n\n';
+                        }
+                    }
+
+                    resolve({
+                        text: fullText,
+                        pages,
+                        metadata: {
+                            title: epub.metadata.title,
+                            author: epub.metadata.creator,
+                            totalPages: pages.length,
+                            language: epub.metadata.language,
+                        },
                     });
-
-                    fullText += cleanText + '\n\n';
-                }
-
-                resolve({
-                    text: fullText,
-                    pages,
-                    metadata: {
-                        title: epub.metadata.title,
-                        author: epub.metadata.creator,
-                        totalPages: pages.length,
-                        language: epub.metadata.language,
-                    },
                 });
-            });
 
-            epub.on('error', (error) => {
-                console.error('EPUB parsing error:', error);
+                epub.on('error', (error) => {
+                    console.error('EPUB parsing error (event):', error);
+                    reject(new Error('Failed to parse EPUB file'));
+                });
+
+                epub.parse();
+            } catch (error) {
+                console.error('EPUB parsing error (sync):', error);
                 reject(new Error('Failed to parse EPUB file'));
-            });
-
-            epub.parse();
-        } catch (error) {
-            console.error('EPUB parsing error:', error);
-            reject(new Error('Failed to parse EPUB file'));
+            }
+        });
+    } catch (error) {
+        throw error;
+    } finally {
+        // Clean up temp file
+        try {
+            await fs.unlink(tempFilePath);
+        } catch (e) {
+            console.warn('Failed to cleanup temp EPUB file:', e);
         }
-    });
+    }
 }
 
 /**

@@ -280,7 +280,7 @@ export default function BookReaderPage() {
                 <main className="flex-1 overflow-auto bg-neutral-900 scrollbar-thin scrollbar-thumb-white/10 flex justify-center p-8">
                     <div className="relative shadow-2xl h-fit">
                         <PDFViewer
-                            fileUrl={selectedBook ? `http://localhost:3001/api/book/${selectedBook.id}/file` : null}
+                            fileUrl={selectedBook ? `${process.env.NEXT_PUBLIC_API_URL}/book/${selectedBook.id}/file` : null}
                             scale={scale}
                             setScale={setScale}
                             pageNumber={pageNumber}

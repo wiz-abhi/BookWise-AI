@@ -24,13 +24,28 @@ let gcsClient: Storage | null = null;
 let gcsBucket: any = null;
 
 if (STORAGE_TYPE === 'gcs') {
-    if (!process.env.GCS_KEY_FILE && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        console.warn('⚠️ GCS_KEY_FILE not provided. GCS may fail if not running in a GCP environment.');
+    const credentialsJson = process.env.GCS_CREDENTIALS;
+
+    if (!process.env.GCS_KEY_FILE && !credentialsJson && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        console.warn('⚠️ GCS credentials not provided. GCS may fail if not running in a GCP environment.');
     }
-    gcsClient = new Storage({
-        keyFilename: process.env.GCS_KEY_FILE,
+
+    const storageOptions: any = {
         projectId: process.env.GCS_PROJECT_ID,
-    });
+    };
+
+    if (credentialsJson) {
+        try {
+            storageOptions.credentials = JSON.parse(credentialsJson);
+            console.log('🔑 Loaded GCS credentials from environment variable');
+        } catch (e) {
+            console.error('❌ Failed to parse GCS_CREDENTIALS JSON');
+        }
+    } else if (process.env.GCS_KEY_FILE) {
+        storageOptions.keyFilename = process.env.GCS_KEY_FILE;
+    }
+
+    gcsClient = new Storage(storageOptions);
 }
 
 const BUCKET_NAME = process.env.MINIO_BUCKET || process.env.GCS_BUCKET_NAME || 'bookbuddy';

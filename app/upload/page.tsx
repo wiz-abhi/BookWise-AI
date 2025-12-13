@@ -7,10 +7,28 @@ import { useChatStore } from '@/lib/store';
 import { Upload, FileText, Loader2, CheckCircle2, XCircle, BookOpen, Sparkles, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '../components/AuthProvider';
 
 export default function UploadPage() {
     const router = useRouter();
+    const { isAuthenticated, loading: authLoading } = useAuth();
     const { userId, setSelectedBook } = useChatStore();
+
+    useEffect(() => {
+        if (!authLoading && !isAuthenticated) {
+            router.push('/login');
+        }
+    }, [authLoading, isAuthenticated, router]);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) return null;
     const [uploading, setUploading] = useState(false);
     const [ingestionStatus, setIngestionStatus] = useState<{
         jobId: string;
@@ -139,8 +157,8 @@ export default function UploadPage() {
                     <div
                         {...getRootProps()}
                         className={`group relative rounded-3xl p-12 text-center cursor-pointer transition-all duration-500 border-2 border-dashed overflow-hidden ${isDragActive
-                                ? 'border-indigo-500 bg-indigo-500/10'
-                                : 'border-white/10 hover:border-indigo-500/50 bg-white/5 hover:bg-white/10'
+                            ? 'border-indigo-500 bg-indigo-500/10'
+                            : 'border-white/10 hover:border-indigo-500/50 bg-white/5 hover:bg-white/10'
                             } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <input {...getInputProps()} />

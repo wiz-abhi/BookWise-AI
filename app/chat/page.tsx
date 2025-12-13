@@ -6,9 +6,13 @@ import { queryAPI } from '@/lib/api';
 import { MessageList } from '@/components/chat/MessageList';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { PersonaSelector } from '@/components/chat/PersonaSelector';
-import { BookOpen, Menu, Sparkles } from 'lucide-react';
+import { BookOpen, Menu, Sparkles, Loader2 } from 'lucide-react';
+import { useAuth } from '../components/AuthProvider';
+import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
+    const { isAuthenticated, loading: authLoading } = useAuth();
+    const router = useRouter();
     const {
         messages,
         addMessage,
@@ -21,6 +25,22 @@ export default function ChatPage() {
         conversationId,
         setConversationId,
     } = useChatStore();
+
+    useEffect(() => {
+        if (!authLoading && !isAuthenticated) {
+            router.push('/login');
+        }
+    }, [authLoading, isAuthenticated, router]);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) return null;
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);

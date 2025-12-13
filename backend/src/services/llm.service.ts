@@ -80,7 +80,7 @@ User Question: ${query}
 
 Please provide a response in the following JSON format:
 {
-  "answer": "Your detailed answer here, referencing citations as [1], [2], etc.",
+  "answer": "Your detailed answer here. Do NOT use [1] notation in the text.",
   "confidence": 0.85,
   "usedCitations": [1, 2]
 }

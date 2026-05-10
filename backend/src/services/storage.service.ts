@@ -1,86 +1,52 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Client as MinioClient } from 'minio';
-import { Storage } from '@google-cloud/storage';
+import { 
+    S3Client, 
+    PutObjectCommand, 
+    GetObjectCommand, 
+    DeleteObjectCommand,
+    HeadBucketCommand
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const STORAGE_TYPE = process.env.STORAGE_TYPE || 'local';
 const LOCAL_STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || './uploads';
 
-// MinIO client (S3-compatible)
-let minioClient: MinioClient | null = null;
+// Backblaze B2 (S3 API) client
+let s3Client: S3Client | null = null;
+const BUCKET_NAME = process.env.B2_BUCKET_NAME || 'bookbuddy-b2';
 
-if (STORAGE_TYPE === 'minio') {
-    minioClient = new MinioClient({
-        endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-        port: parseInt(process.env.MINIO_PORT || '9000'),
-        useSSL: process.env.MINIO_USE_SSL === 'true',
-        accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-        secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+if (STORAGE_TYPE === 'b2') {
+    if (!process.env.B2_ENDPOINT || !process.env.B2_REGION || !process.env.B2_APPLICATION_KEY_ID || !process.env.B2_APPLICATION_KEY) {
+        console.warn('⚠️ B2 credentials or endpoint not fully provided in environment variables.');
+    }
+
+    s3Client = new S3Client({
+        region: process.env.B2_REGION || 'us-east-005',
+        endpoint: process.env.B2_ENDPOINT || 'https://s3.us-east-005.backblazeb2.com',
+        credentials: {
+            accessKeyId: process.env.B2_APPLICATION_KEY_ID || '',
+            secretAccessKey: process.env.B2_APPLICATION_KEY || '',
+        },
+        forcePathStyle: true, // Required for Backblaze B2 compatibility in some cases
     });
 }
 
-// Google Cloud Storage client
-let gcsClient: Storage | null = null;
-let gcsBucket: any = null;
-
-if (STORAGE_TYPE === 'gcs') {
-    const credentialsJson = process.env.GCS_CREDENTIALS;
-
-    if (!process.env.GCS_KEY_FILE && !credentialsJson && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        console.warn('⚠️ GCS credentials not provided. GCS may fail if not running in a GCP environment.');
-    }
-
-    const storageOptions: any = {
-        projectId: process.env.GCS_PROJECT_ID,
-    };
-
-    if (credentialsJson) {
-        try {
-            storageOptions.credentials = JSON.parse(credentialsJson);
-            console.log('🔑 Loaded GCS credentials from environment variable');
-        } catch (e) {
-            console.warn('⚠️ Standard JSON parse failed, trying Base64 decode for GCS_CREDENTIALS...');
-            try {
-                const decodedJson = Buffer.from(credentialsJson, 'base64').toString('utf-8');
-                storageOptions.credentials = JSON.parse(decodedJson);
-                console.log('🔑 Loaded Base64-encoded GCS credentials');
-            } catch (base64Error) {
-                console.error('❌ Failed to parse GCS_CREDENTIALS (Invalid JSON or Base64)');
-            }
-        }
-    } else if (process.env.GCS_KEY_FILE) {
-        storageOptions.keyFilename = process.env.GCS_KEY_FILE;
-    }
-
-    gcsClient = new Storage(storageOptions);
-}
-
-const BUCKET_NAME = process.env.MINIO_BUCKET || process.env.GCS_BUCKET_NAME || 'bookbuddy';
-
 /**
- * Initialize storage (create directories or buckets)
+ * Initialize storage (create directories or check buckets)
  */
 export async function initializeStorage(): Promise<void> {
     if (STORAGE_TYPE === 'local') {
         // Create local storage directory if it doesn't exist
         await fs.mkdir(LOCAL_STORAGE_PATH, { recursive: true });
         console.log(`📁 Local storage initialized at: ${LOCAL_STORAGE_PATH}`);
-    } else if (STORAGE_TYPE === 'minio' && minioClient) {
-        // Create MinIO bucket if it doesn't exist
-        const exists = await minioClient.bucketExists(BUCKET_NAME);
-        if (!exists) {
-            await minioClient.makeBucket(BUCKET_NAME, 'us-east-1');
-            console.log(`📦 MinIO bucket created: ${BUCKET_NAME}`);
-        } else {
-            console.log(`📦 MinIO bucket exists: ${BUCKET_NAME}`);
-        }
-    } else if (STORAGE_TYPE === 'gcs' && gcsClient) {
-        gcsBucket = gcsClient.bucket(BUCKET_NAME);
-        const [exists] = await gcsBucket.exists();
-        if (exists) {
-            console.log(`📦 GCS bucket exists: ${BUCKET_NAME}`);
-        } else {
-            console.log(`⚠️ GCS bucket ${BUCKET_NAME} does not exist. Please create it in GCP Console.`);
+    } else if (STORAGE_TYPE === 'b2' && s3Client) {
+        try {
+            // Check if bucket exists/is accessible
+            await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET_NAME }));
+            console.log(`📦 B2 bucket accessible: ${BUCKET_NAME}`);
+        } catch (error: any) {
+            console.error(`⚠️ B2 bucket ${BUCKET_NAME} might not exist or is not accessible. Please create it in Backblaze Console. Error: ${error.message}`);
         }
     }
 }
@@ -101,12 +67,13 @@ export async function uploadFile(
         await fs.mkdir(dir, { recursive: true });
         await fs.writeFile(filePath, file);
         return fileKey;
-    } else if (STORAGE_TYPE === 'minio' && minioClient) {
-        await minioClient.putObject(BUCKET_NAME, fileKey, file);
-        return fileKey;
-    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
-        const fileObj = gcsBucket.file(fileKey);
-        await fileObj.save(file);
+    } else if (STORAGE_TYPE === 'b2' && s3Client) {
+        await s3Client.send(new PutObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: fileKey,
+            Body: file,
+            // You can also add ContentType if known, but B2 will handle it
+        }));
         return fileKey;
     }
 
@@ -120,18 +87,21 @@ export async function downloadFile(fileKey: string): Promise<Buffer> {
     if (STORAGE_TYPE === 'local') {
         const filePath = path.join(LOCAL_STORAGE_PATH, fileKey);
         return await fs.readFile(filePath);
-    } else if (STORAGE_TYPE === 'minio' && minioClient) {
+    } else if (STORAGE_TYPE === 'b2' && s3Client) {
+        const response = await s3Client.send(new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: fileKey,
+        }));
+        
+        // AWS SDK v3 streams body, we need to convert to Buffer
+        const stream = response.Body as NodeJS.ReadableStream;
         const chunks: Buffer[] = [];
-        const stream = await minioClient.getObject(BUCKET_NAME, fileKey);
-
+        
         return new Promise((resolve, reject) => {
-            stream.on('data', (chunk) => chunks.push(chunk));
-            stream.on('end', () => resolve(Buffer.concat(chunks)));
+            stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
             stream.on('error', reject);
+            stream.on('end', () => resolve(Buffer.concat(chunks)));
         });
-    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
-        const [buffer] = await gcsBucket.file(fileKey).download();
-        return buffer;
     }
 
     throw new Error('Invalid storage configuration');
@@ -143,30 +113,36 @@ export async function downloadFile(fileKey: string): Promise<Buffer> {
 export async function deleteFile(fileKey: string): Promise<void> {
     if (STORAGE_TYPE === 'local') {
         const filePath = path.join(LOCAL_STORAGE_PATH, fileKey);
-        await fs.unlink(filePath);
-    } else if (STORAGE_TYPE === 'minio' && minioClient) {
-        await minioClient.removeObject(BUCKET_NAME, fileKey);
-    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
-        await gcsBucket.file(fileKey).delete().catch((e: any) => console.warn('GCS delete warning:', e.message));
+        try {
+            await fs.unlink(filePath);
+        } catch (error: any) {
+            if (error.code !== 'ENOENT') throw error;
+        }
+    } else if (STORAGE_TYPE === 'b2' && s3Client) {
+        try {
+            await s3Client.send(new DeleteObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: fileKey,
+            }));
+        } catch (error: any) {
+            console.warn('B2 delete warning:', error.message);
+        }
     }
 }
 
 /**
- * Get file URL (for MinIO) or path (for local)
+ * Get file URL (presigned for B2) or path (for local)
  */
 export async function getFileUrl(fileKey: string): Promise<string> {
     if (STORAGE_TYPE === 'local') {
         return path.join(LOCAL_STORAGE_PATH, fileKey);
-    } else if (STORAGE_TYPE === 'minio' && minioClient) {
+    } else if (STORAGE_TYPE === 'b2' && s3Client) {
         // Generate presigned URL (valid for 24 hours)
-        return await minioClient.presignedGetObject(BUCKET_NAME, fileKey, 24 * 60 * 60);
-    } else if (STORAGE_TYPE === 'gcs' && gcsBucket) {
-        const [url] = await gcsBucket.file(fileKey).getSignedUrl({
-            version: 'v4',
-            action: 'read',
-            expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        const command = new GetObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: fileKey,
         });
-        return url;
+        return await getSignedUrl(s3Client, command, { expiresIn: 24 * 60 * 60 });
     }
 
     throw new Error('Invalid storage configuration');

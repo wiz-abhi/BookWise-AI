@@ -25,7 +25,6 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
         if (typeof window !== 'undefined') {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            // Optional: Redirect to login if not already there
             if (!window.location.pathname.includes('/login')) {
                 window.location.href = '/login';
             }
@@ -35,6 +34,7 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     return response;
 }
 
+// Legacy query API (kept for backward compatibility)
 export const queryAPI = {
     sendMessage: async (convId: string, data: any) => {
         const response = await apiRequest(`/chat/${convId}/message`, {
@@ -55,6 +55,7 @@ export const queryAPI = {
     },
 };
 
+// Upload API
 export const uploadAPI = {
     uploadBook: async (file: File, metadata: { userId?: string; title?: string; author?: string }) => {
         const formData = new FormData();
@@ -89,6 +90,7 @@ export const uploadAPI = {
     }
 };
 
+// Library API
 export const libraryAPI = {
     deleteBook: async (bookId: string) => {
         const response = await apiRequest(`/user/book/${bookId}`, {
@@ -100,4 +102,95 @@ export const libraryAPI = {
         }
         return response.json();
     }
+};
+
+// ============================================================
+// NEW: Mode API — Character exploration experience modes
+// ============================================================
+export const modeAPI = {
+    /** Companion mode — reading buddy aware of your current page */
+    companion: async (data: { bookId: string; query: string; conversationId?: string }) => {
+        const response = await apiRequest('/mode/companion', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to query companion mode');
+        return response.json();
+    },
+
+    /** Character Voice mode — talk to a character in-character */
+    characterVoice: async (data: { bookId: string; characterId: string; query: string; conversationId?: string }) => {
+        const response = await apiRequest('/mode/character', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to query character voice mode');
+        return response.json();
+    },
+
+    /** Multi-POV Replay — scene from multiple character perspectives */
+    multiPOV: async (data: { bookId: string; characterIds: string[]; sceneDescription: string }) => {
+        const response = await apiRequest('/mode/pov', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to query multi-POV mode');
+        return response.json();
+    },
+
+    /** Motive Decoder — deep character psychology analysis */
+    motiveDecoder: async (data: { bookId: string; characterId: string; action?: string; query?: string }) => {
+        const response = await apiRequest('/mode/motive', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to query motive decoder mode');
+        return response.json();
+    },
+
+    /** What-If Explorer — alternate paths grounded in character */
+    whatIf: async (data: { bookId: string; characterId: string; scenario: string }) => {
+        const response = await apiRequest('/mode/whatif', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error('Failed to query what-if mode');
+        return response.json();
+    },
+
+    /** Get all extracted characters for a book */
+    getCharacters: async (bookId: string) => {
+        const response = await apiRequest(`/mode/characters/${bookId}`);
+        if (!response.ok) throw new Error('Failed to get characters');
+        return response.json();
+    },
+};
+
+// ============================================================
+// NEW: Progress API — Reading progress tracking
+// ============================================================
+export const progressAPI = {
+    /** Update reading progress for a book */
+    update: async (bookId: string, page: number, totalPages?: number) => {
+        const response = await apiRequest('/progress', {
+            method: 'POST',
+            body: JSON.stringify({ bookId, page, totalPages }),
+        });
+        if (!response.ok) throw new Error('Failed to update progress');
+        return response.json();
+    },
+
+    /** Get reading progress for a specific book */
+    get: async (bookId: string) => {
+        const response = await apiRequest(`/progress/${bookId}`);
+        if (!response.ok) throw new Error('Failed to get progress');
+        return response.json();
+    },
+
+    /** Get all reading progress for the authenticated user */
+    getAll: async () => {
+        const response = await apiRequest('/progress');
+        if (!response.ok) throw new Error('Failed to get all progress');
+        return response.json();
+    },
 };

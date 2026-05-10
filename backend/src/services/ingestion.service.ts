@@ -4,6 +4,7 @@ import { parseDocument } from './parser.service';
 import { chunkDocument } from './chunking.service';
 import { generateEmbeddings } from './embedding.service';
 import { query } from '../db';
+import { extractCharacters } from './character.service';
 
 // Create Bull queue for ingestion jobs
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -149,6 +150,11 @@ ingestionQueue.process(async (job) => {
         );
 
         console.log(`✅ Ingestion job ${jobId} completed successfully`);
+
+        // Trigger character extraction asynchronously (don't block ingestion completion)
+        extractCharacters(bookId).catch(err => {
+            console.error(`⚠️ Background character extraction failed for book ${bookId}:`, err.message);
+        });
     } catch (error: any) {
         console.error(`❌ Ingestion job ${jobId} failed:`, error);
 

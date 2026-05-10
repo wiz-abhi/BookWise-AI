@@ -10,6 +10,8 @@ import uploadRoutes from './routes/upload';
 import queryRoutes from './routes/query';
 import userRoutes from './routes/user';
 import authRoutes from './routes/auth';
+import modeRoutes from './routes/mode';
+import progressRoutes from './routes/progress';
 
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
@@ -31,7 +33,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // API Routes
 app.get('/api', (req: Request, res: Response) => {
-    res.json({ message: 'BookBuddy API Server' });
+    res.json({ message: 'BookWise API Server' });
 });
 
 // Auth routes
@@ -41,9 +43,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ingest', uploadRoutes);
 
-// Query routes
+// Query routes (legacy — kept for backward compatibility)
 app.use('/api/query', queryRoutes);
 app.use('/api/chat', queryRoutes);
+
+// Mode routes (new — character exploration modes)
+app.use('/api/mode', modeRoutes);
+
+// Progress routes (reading progress tracking)
+app.use('/api/progress', progressRoutes);
 
 // User routes
 app.use('/api/user', userRoutes);

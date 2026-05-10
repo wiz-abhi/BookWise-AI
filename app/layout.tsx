@@ -4,8 +4,8 @@ import { AuthProvider } from "./components/AuthProvider";
 import Navbar from "./components/Navbar";
 
 export const metadata: Metadata = {
-  title: "BookBuddy - AI Book Companion",
-  description: "Have context-aware conversations with your books using AI",
+  title: "BookWise — Inhabit the Story",
+  description: "See every angle, feel every motive, live in the world. Talk to characters, explore alternate paths, and understand fiction like never before.",
 };
 
 export default function RootLayout({

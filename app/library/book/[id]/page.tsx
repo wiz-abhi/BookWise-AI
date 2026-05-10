@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useChatStore } from '@/lib/store';
 import { queryAPI, userAPI } from '@/lib/api';
+import { progressAPI } from '@/app/lib/api';
 import {
     ChevronLeft,
     ChevronRight,
@@ -15,7 +16,8 @@ import {
     Sparkles,
     Square,
     X,
-    Loader2
+    Loader2,
+    Compass
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -83,6 +85,16 @@ export default function BookReaderPage() {
         };
         loadBook();
     }, [selectedBook, params.id, userId, setSelectedBook, authLoading]);
+
+    // Track reading progress on page change
+    useEffect(() => {
+        if (selectedBook?.id && pageNumber && !authLoading) {
+            const timeout = setTimeout(() => {
+                progressAPI.update(selectedBook.id, pageNumber, numPages || undefined).catch(() => {});
+            }, 1000); // Debounce
+            return () => clearTimeout(timeout);
+        }
+    }, [pageNumber, selectedBook?.id, numPages, authLoading]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -250,6 +262,14 @@ export default function BookReaderPage() {
                             }`}
                     >
                         {isVoiceActive ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                    </button>
+
+                    <button
+                        onClick={() => router.push(`/book/${selectedBook?.id}/modes`)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors"
+                    >
+                        <Compass className="w-4 h-4" />
+                        <span className="hidden sm:inline">Explore Modes</span>
                     </button>
 
                     <button

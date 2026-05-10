@@ -1,0 +1,115 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useChatStore, Character } from '@/lib/store';
+import { modeAPI } from '@/app/lib/api';
+import { useAuth } from '@/app/components/AuthProvider';
+import { Wand2, ArrowLeft, Loader2, ChevronDown, GitBranch } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+
+export default function WhatIfModePage() {
+    const params = useParams();
+    const router = useRouter();
+    const { selectedBook } = useChatStore();
+    const { isAuthenticated, loading: authLoading } = useAuth();
+    const [characters, setCharacters] = useState<Character[]>([]);
+    const [selectedChar, setSelectedChar] = useState<Character | null>(null);
+    const [showPicker, setShowPicker] = useState(false);
+    const [scenario, setScenario] = useState('');
+    const [result, setResult] = useState<{ answer: string; citations: any[] } | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [loadingChars, setLoadingChars] = useState(true);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const bookId = params.id as string;
+
+    useEffect(() => { if (!authLoading && !isAuthenticated) router.push('/login'); }, [authLoading, isAuthenticated, router]);
+
+    useEffect(() => {
+        const h = (e: MouseEvent) => { if (containerRef.current) { const r = containerRef.current.getBoundingClientRect(); containerRef.current.style.setProperty('--mouse-x', `${e.clientX - r.left}px`); containerRef.current.style.setProperty('--mouse-y', `${e.clientY - r.top}px`); } };
+        window.addEventListener('mousemove', h); return () => window.removeEventListener('mousemove', h);
+    }, []);
+
+    useEffect(() => {
+        if (!bookId) return;
+        modeAPI.getCharacters(bookId).then((d) => { setCharacters(d.characters || []); if (d.characters?.length > 0) setSelectedChar(d.characters[0]); }).catch(console.error).finally(() => setLoadingChars(false));
+    }, [bookId]);
+
+    const handleSubmit = async () => {
+        if (!selectedChar || !scenario.trim()) return;
+        setLoading(true); setResult(null);
+        try {
+            const r = await modeAPI.whatIf({ bookId, characterId: selectedChar.id, scenario: scenario.trim() });
+            setResult({ answer: r.answer, citations: r.citations });
+        } catch { setResult({ answer: 'Failed to explore this path. Try again.', citations: [] }); } finally { setLoading(false); }
+    };
+
+    if (authLoading || loadingChars) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>;
+
+    return (
+        <div ref={containerRef} className="min-h-screen bg-black text-gray-100 pt-28 pb-20 px-4 sm:px-6 relative">
+            <div className="interactive-bg" />
+            <div className="max-w-4xl mx-auto space-y-8 relative z-10">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => router.push(`/book/${bookId}/modes`)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><ArrowLeft className="w-4 h-4 text-gray-400" /></button>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg"><Wand2 className="w-5 h-5 text-white" /></div>
+                    <div><h1 className="text-2xl font-bold text-white">What If Explorer</h1><p className="text-xs text-gray-500">Alternate paths — {selectedBook?.title}</p></div>
+                </div>
+
+                {!result && (
+                    <div className="space-y-6 animate-fade-in">
+                        {/* Character Picker */}
+                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3">
+                            <label className="text-sm font-semibold text-white">Which character's alternate path?</label>
+                            <div className="relative">
+                                <button onClick={() => setShowPicker(!showPicker)} className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white">{selectedChar?.name?.charAt(0) || '?'}</div>
+                                        <div className="text-left"><p className="text-sm font-medium text-white">{selectedChar?.name || 'Select'}</p><p className="text-xs text-gray-500 truncate max-w-[300px]">{selectedChar?.description}</p></div>
+                                    </div>
+                                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                                </button>
+                                {showPicker && (
+                                    <div className="absolute left-0 right-0 top-full mt-2 glass-panel rounded-xl border border-white/10 shadow-2xl z-50 p-2 max-h-60 overflow-y-auto">
+                                        {characters.map((c) => (
+                                            <button key={c.id} onClick={() => { setSelectedChar(c); setShowPicker(false); }} className={`w-full text-left p-3 rounded-lg hover:bg-white/5 transition-all flex items-center gap-3 ${selectedChar?.id === c.id ? 'bg-indigo-500/10' : ''}`}>
+                                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white">{c.name.charAt(0)}</div>
+                                                <span className="text-sm text-gray-300">{c.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Scenario Input */}
+                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3">
+                            <label className="text-sm font-semibold text-white flex items-center gap-2"><GitBranch className="w-4 h-4 text-indigo-400" />What if they had...</label>
+                            <textarea value={scenario} onChange={(e) => setScenario(e.target.value)} placeholder={`e.g. "What if ${selectedChar?.name || 'they'} had told the truth instead of lying?" or "What if ${selectedChar?.name || 'they'} had left town before the confrontation?"`} rows={3} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none transition-all" />
+                        </div>
+
+                        <button onClick={handleSubmit} disabled={!selectedChar || !scenario.trim() || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-800 disabled:opacity-50 text-white font-semibold transition-all flex items-center justify-center gap-2 shadow-lg">
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                            {loading ? 'Exploring the alternate path...' : 'Explore This What-If'}
+                        </button>
+                    </div>
+                )}
+
+                {result && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="glass-panel rounded-2xl p-8 border-white/10">
+                            <div className="prose prose-invert max-w-none prose-headings:text-indigo-300 prose-p:leading-relaxed prose-strong:text-indigo-200"><ReactMarkdown>{result.answer}</ReactMarkdown></div>
+                        </div>
+                        {result.citations?.length > 0 && (
+                            <div className="glass-panel rounded-xl p-4 border-white/10">
+                                <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-3">Textual Evidence</p>
+                                <div className="flex flex-wrap gap-2">{result.citations.map((c: any, i: number) => (<span key={i} className="px-2.5 py-1 text-xs rounded-lg bg-white/5 border border-white/10 text-gray-400">{c.bookTitle} · p.{c.page || '?'}</span>))}</div>
+                            </div>
+                        )}
+                        <button onClick={() => { setResult(null); setScenario(''); }} className="text-sm text-gray-500 hover:text-white transition-colors flex items-center gap-2"><ArrowLeft className="w-3 h-3" /> Explore another what-if</button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

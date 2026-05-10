@@ -8,8 +8,6 @@
 }
 
 :root {
-  /* Shiny Black Theme - Light Mode (Default to Dark-ish for this specific request, or standard light) */
-  /* The user requested "Shiny Black" as the theme, implying a dark default */
   --background: #0a0a0a;
   --foreground: #ededed;
 
@@ -18,6 +16,18 @@
   --card-shiny: rgba(255, 255, 255, 0.15);
 
   --primary-glow: conic-gradient(from 180deg at 50% 50%, #2a8af6 0deg, #a853ba 180deg, #e92a67 360deg);
+
+  /* Mode-specific colors */
+  --companion-primary: #f59e0b;
+  --companion-secondary: #d97706;
+  --character-primary: #8b5cf6;
+  --character-secondary: #7c3aed;
+  --pov-primary: #06b6d4;
+  --pov-secondary: #0891b2;
+  --motive-primary: #f43f5e;
+  --motive-secondary: #e11d48;
+  --whatif-primary: #6366f1;
+  --whatif-secondary: #4f46e5;
 }
 
 body {
@@ -25,7 +35,6 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: hidden;
-  /* Prevent horizontal scroll from 3D effects */
 }
 
 /* Glassy Utilities */
@@ -93,6 +102,32 @@ body {
   pointer-events: none;
 }
 
+/* Mode card hover glow variants */
+.mode-card-companion:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 20px 40px -10px rgba(245, 158, 11, 0.15);
+}
+
+.mode-card-character:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 20px 40px -10px rgba(139, 92, 246, 0.15);
+}
+
+.mode-card-pov:hover {
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.15);
+}
+
+.mode-card-motive:hover {
+  border-color: rgba(244, 63, 94, 0.4);
+  box-shadow: 0 20px 40px -10px rgba(244, 63, 94, 0.15);
+}
+
+.mode-card-whatif:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.15);
+}
+
 @keyframes float {
   0% {
     transform: translateY(0px);
@@ -119,10 +154,46 @@ body {
   }
 }
 
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px -5px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 40px -5px currentColor;
+  }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
 
 .animate-fade-in {
   animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Companion mode warm tones */
+.companion-gradient {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+}
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

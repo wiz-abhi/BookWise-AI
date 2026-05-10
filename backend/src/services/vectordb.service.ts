@@ -17,6 +17,7 @@ export interface SearchOptions {
     bookId?: string;
     limit?: number;
     minSimilarity?: number;
+    maxPage?: number; // For companion mode — only search chunks up to this page
 }
 
 /**
@@ -52,8 +53,14 @@ export async function searchSimilarChunks(
 
     // Add book filter if specified
     if (bookId) {
-        sql += ` AND c.book_id = $3`;
+        sql += ` AND c.book_id = $${params.length + 1}`;
         params.push(bookId);
+    }
+
+    // Add page limit filter (for companion mode — no spoilers)
+    if (options.maxPage) {
+        sql += ` AND (c.page IS NULL OR c.page <= $${params.length + 1})`;
+        params.push(options.maxPage);
     }
 
     // Order by similarity and limit results

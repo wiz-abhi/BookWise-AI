@@ -26,6 +26,23 @@ export interface Book {
     createdAt: string;
 }
 
+export interface Character {
+    id: string;
+    bookId: string;
+    name: string;
+    aliases: string[];
+    description: string;
+    traits: {
+        personality: string[];
+        motivations: string[];
+        fears: string[];
+    };
+    relationships: Array<{ name: string; type: string; description: string }>;
+    firstAppearance: { page?: number; chapter?: string };
+}
+
+export type ExperienceMode = 'companion' | 'character_voice' | 'multi_pov' | 'motive_decoder' | 'what_if';
+
 interface ChatStore {
     // Messages
     messages: Message[];
@@ -40,9 +57,17 @@ interface ChatStore {
     selectedBook: Book | null;
     setSelectedBook: (book: Book | null) => void;
 
-    // Persona
-    persona: 'scholar' | 'friend' | 'quizzer';
-    setPersona: (persona: 'scholar' | 'friend' | 'quizzer') => void;
+    // Experience mode (replaces persona)
+    activeMode: ExperienceMode | null;
+    setActiveMode: (mode: ExperienceMode | null) => void;
+
+    // Selected character (for character-based modes)
+    selectedCharacter: Character | null;
+    setSelectedCharacter: (character: Character | null) => void;
+
+    // Reading progress
+    readingProgress: { currentPage: number; totalPages: number | null } | null;
+    setReadingProgress: (progress: { currentPage: number; totalPages: number | null } | null) => void;
 
     // Loading state
     isLoading: boolean;
@@ -51,6 +76,10 @@ interface ChatStore {
     // User ID (temporary - replace with auth later)
     userId: string;
     setUserId: (id: string) => void;
+
+    // Legacy persona support (kept for backward compatibility with old chat)
+    persona: 'scholar' | 'friend' | 'quizzer';
+    setPersona: (persona: 'scholar' | 'friend' | 'quizzer') => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -77,9 +106,17 @@ export const useChatStore = create<ChatStore>((set) => ({
     selectedBook: null,
     setSelectedBook: (book) => set({ selectedBook: book }),
 
-    // Persona
-    persona: 'friend',
-    setPersona: (persona) => set({ persona }),
+    // Experience mode
+    activeMode: null,
+    setActiveMode: (mode) => set({ activeMode: mode }),
+
+    // Selected character
+    selectedCharacter: null,
+    setSelectedCharacter: (character) => set({ selectedCharacter: character }),
+
+    // Reading progress
+    readingProgress: null,
+    setReadingProgress: (progress) => set({ readingProgress: progress }),
 
     // Loading
     isLoading: false,
@@ -88,4 +125,8 @@ export const useChatStore = create<ChatStore>((set) => ({
     // User
     userId: 'demo-user',
     setUserId: (id) => set({ userId: id }),
+
+    // Legacy persona
+    persona: 'friend',
+    setPersona: (persona) => set({ persona }),
 }));

@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Book as BookType, useChatStore } from '@/lib/store';
-import { userAPI, uploadAPI } from '@/lib/api';
+import { userAPI } from '@/lib/api';
+import { progressAPI, modeAPI } from '@/app/lib/api';
 import {
     BookOpen,
     Plus,
@@ -17,16 +18,19 @@ import {
     Feather,
     Rocket,
     GraduationCap,
+    MoreHorizontal,
+    Compass,
+    Users,
     Trash2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // Mock data extension since backend doesn't support these fields yet
-interface EnhancedBook extends BookType {
+export interface EnhancedBook extends BookType {
     category?: string;
-    progress?: number;
-    coverColor?: string;
+    progress?: { currentPage: number, totalPages: number | null };
     lastRead?: Date;
+    characterCount?: number;
 }
 
 const CATEGORIES = [
@@ -63,18 +67,35 @@ export default function LibraryPage() {
     const fetchBooks = async () => {
         try {
             setLoading(true);
-            const data = await userAPI.getUserLibrary(userId);
+            const [data, progressData] = await Promise.all([
+                userAPI.getUserLibrary(userId),
+                progressAPI.getAll().catch(() => ({ progress: [] }))
+            ]);
 
-            // Backend returns wrapped object { books: [...] }
-            const enrichedBooks = (data.books || []).map((book: any, index: number) => ({
-                ...book,
-                // Randomly assign category for demo
-                category: CATEGORIES[index % CATEGORIES.length].id,
-                // Mock progress for some books
-                progress: Math.random() > 0.3 ? Math.floor(Math.random() * 100) : 0,
-                // Mock last read time
-                lastRead: new Date(Date.now() - Math.random() * 10000000000),
-            }));
+            const progressMap = new Map<string, { currentPage: number, totalPages: number | null, lastReadAt: string }>(
+                progressData.progress?.map((p: any) => [p.bookId, p]) || []
+            );
+
+            // Fetch character counts concurrently for all books
+            const characterCounts = await Promise.all(
+                (data.books || []).map((book: any) => 
+                    modeAPI.getCharacters(book.id)
+                        .then(res => ({ bookId: book.id, count: res.characters?.length || 0 }))
+                        .catch(() => ({ bookId: book.id, count: 0 }))
+                )
+            );
+            const countMap = new Map(characterCounts.map(c => [c.bookId, c.count]));
+
+            const enrichedBooks = (data.books || []).map((book: any, index: number) => {
+                const prog = progressMap.get(book.id);
+                return {
+                    ...book,
+                    category: CATEGORIES[index % CATEGORIES.length].id, // Still demo category
+                    progress: prog ? { currentPage: prog.currentPage, totalPages: prog.totalPages } : undefined,
+                    lastRead: prog?.lastReadAt ? new Date(prog.lastReadAt) : new Date(book.createdAt),
+                    characterCount: countMap.get(book.id) || 0,
+                };
+            });
 
             setBooks(enrichedBooks);
         } catch (error) {
@@ -94,9 +115,9 @@ export default function LibraryPage() {
         return acc;
     }, {} as Record<string, EnhancedBook[]>);
 
-    // Get recently read books (mock logic)
+    // Get recently read books (actual logic)
     const recentBooks = [...books]
-        .filter(b => (b.progress || 0) > 0)
+        .filter(b => b.progress !== undefined)
         .sort((a, b) => (b.lastRead?.getTime() || 0) - (a.lastRead?.getTime() || 0))
         .slice(0, 5);
 
@@ -192,17 +213,20 @@ export default function LibraryPage() {
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <div className="flex justify-between text-xs text-gray-400">
-                                                        <span>Progress</span>
-                                                        <span>{book.progress}%</span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                                                            style={{ width: `${book.progress}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
+                                                    {book.progress && (
+                                                        <div className="flex-1 max-w-[200px]">
+                                                            <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                                                <span>pg {book.progress.currentPage}{book.progress.totalPages ? ` / ${book.progress.totalPages}` : ''}</span>
+                                                                <span>{book.progress.totalPages ? Math.round((book.progress.currentPage / book.progress.totalPages) * 100) : 0}%</span>
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                                                                    style={{ width: `${book.progress.totalPages ? (book.progress.currentPage / book.progress.totalPages) * 100 : 5}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}</div>
                                             </div>
                                         </div>
 
@@ -257,8 +281,17 @@ export default function LibraryPage() {
 
                                                 {/* Hover Overlay */}
                                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px] flex flex-col items-center justify-center p-4 gap-3">
-                                                    <button className="px-4 py-2 bg-white text-black text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all hover:bg-gray-200">
-                                                        Read Now
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); router.push(`/book/${book.id}/modes`); }}
+                                                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all hover:scale-105 flex items-center gap-1.5"
+                                                    >
+                                                        <Compass className="w-3.5 h-3.5" /> Explore
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); handleOpenBook(book); }}
+                                                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all border border-white/20"
+                                                    >
+                                                        Read
                                                     </button>
                                                     <button
                                                         onClick={(e) => handleDeleteBook(e, book.id)}
@@ -277,6 +310,11 @@ export default function LibraryPage() {
                                                 <p className="text-xs text-gray-500 truncate">
                                                     {book.author || 'Unknown'}
                                                 </p>
+                                                {book.characterCount ? (
+                                                    <p className="text-[10px] text-gray-600 flex items-center gap-1 mt-1">
+                                                        <Users className="w-3 h-3" /> {book.characterCount} chars
+                                                    </p>
+                                                ) : null}
                                             </div>
                                         </motion.div>
                                     ))}

@@ -16,14 +16,19 @@ const pool = new Pool({
 
 async function runMigration() {
     try {
-        console.log('🔄 Running migration: Fix conversations.id type...');
+        console.log('🔄 Starting migrations...');
+        
+        const migrationsDir = path.join(__dirname, 'migrations');
+        const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
 
-        const migrationPath = path.join(__dirname, 'migrations', '001_fix_conversations_id.sql');
-        const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
+        for (const file of files) {
+            console.log(`\n⏳ Running ${file}...`);
+            const migrationSQL = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+            await pool.query(migrationSQL);
+            console.log(`✅ Completed ${file}`);
+        }
 
-        await pool.query(migrationSQL);
-
-        console.log('✅ Migration completed successfully!');
+        console.log('\n🚀 All migrations completed successfully!');
         process.exit(0);
     } catch (error) {
         console.error('❌ Migration failed:', error);

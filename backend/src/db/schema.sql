@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS chunks (
   page INTEGER,
   chunk_index INTEGER NOT NULL,
   text TEXT NOT NULL,
-  embedding vector(768), -- Gemini text-embedding-004 uses 768 dimensions
+  embedding vector(768), -- Local model Xenova/all-mpnet-base-v2 uses 768 dimensions
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMP DEFAULT NOW()
 );

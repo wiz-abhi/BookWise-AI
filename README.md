@@ -24,7 +24,7 @@ A production-ready RAG-based web application that allows users to upload books a
 - **Node.js/TypeScript** with Express
 - **Neon DB** (Serverless PostgreSQL with pgvector)
 - **Gemini 2.0 Flash** for LLM (with Gemini 1.5 Pro fallback)
-- **Gemini text-embedding-004** for embeddings
+- **Gemini text-embedding-001** for embeddings
 - **Bull** for job queue (Redis)
 - **Tesseract.js** for OCR
 

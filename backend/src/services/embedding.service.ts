@@ -1,51 +1,80 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import dotenv from 'dotenv';
+import { pipeline } from '@xenova/transformers';
 
-dotenv.config();
+const MODEL_NAME = 'Xenova/all-mpnet-base-v2';
+const BATCH_SIZE = 32;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let extractorPipeline: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let modelLoadingPromise: Promise<any> | null = null;
+
+async function getExtractor(): Promise<any> {
+    // Return existing pipeline if already loaded
+    if (extractorPipeline) {
+        return extractorPipeline;
+    }
+
+    // If loading is in progress, wait for it
+    if (modelLoadingPromise) {
+        return modelLoadingPromise;
+    }
+
+    // Start loading the model
+    modelLoadingPromise = (async () => {
+        console.log(`🔄 Loading local embedding model: ${MODEL_NAME}...`);
+        const extractor = await pipeline('feature-extraction', MODEL_NAME, {
+            quantized: true, // Use quantized model for faster loading/lower memory
+        });
+        console.log(`✅ Local embedding model loaded: ${MODEL_NAME}`);
+        extractorPipeline = extractor;
+        return extractor;
+    })();
+
+    return modelLoadingPromise;
+}
 
 /**
- * Generate embeddings for text using Gemini text-embedding-004
+ * Generate embeddings for text using a local transformer model
  * @param texts - Array of text strings to embed
  * @returns Array of embedding vectors (768 dimensions each)
  */
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-    try {
-        const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    if (texts.length === 0) {
+        return [];
+    }
 
-        const embeddings: number[][] = [];
+    const extractor = await getExtractor();
+    const embeddings: number[][] = [];
 
-        // Process in batches to avoid rate limits
-        const batchSize = 100;
+    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+        const batch = texts.slice(i, i + BATCH_SIZE);
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(texts.length / BATCH_SIZE);
 
-        for (let i = 0; i < texts.length; i += batchSize) {
-            const batch = texts.slice(i, i + batchSize);
+        console.log(
+            `Generating embeddings for batch ${batchNumber}/${totalBatches} (${batch.length} texts)`
+        );
 
-            console.log(`Generating embeddings for batch ${i / batchSize + 1} (${batch.length} texts)`);
+        // Process batch - the pipeline can accept an array of strings
+        const output = await extractor(batch, {
+            pooling: 'mean',
+            normalize: true,
+        });
 
-            // Generate embeddings for each text in the batch
-            const batchEmbeddings = await Promise.all(
-                batch.map(async (text) => {
-                    const result = await model.embedContent(text);
-                    return result.embedding.values;
-                })
-            );
-
-            embeddings.push(...batchEmbeddings);
-
-            // Small delay between batches to avoid rate limiting
-            if (i + batchSize < texts.length) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+        // Extract embeddings from output tensor
+        // Output shape: [batch_size, 768]
+        const batchEmbeddings: number[][] = [];
+        for (let j = 0; j < batch.length; j++) {
+            // Get the embedding for the j-th item in the batch
+            const embedding = Array.from(output[j].data as Float32Array);
+            batchEmbeddings.push(embedding);
         }
 
-        console.log(`✅ Generated ${embeddings.length} embeddings`);
-        return embeddings;
-    } catch (error) {
-        console.error('Embedding generation error:', error);
-        throw new Error('Failed to generate embeddings');
+        embeddings.push(...batchEmbeddings);
     }
+
+    console.log(`✅ Generated ${embeddings.length} embeddings with local model ${MODEL_NAME}`);
+    return embeddings;
 }
 
 /**

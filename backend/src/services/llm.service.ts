@@ -1,9 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export interface Citation {
     bookId: string;
@@ -29,15 +29,16 @@ export async function generateResponse(
     modelName: string = 'gemini-2.5-flash'
 ): Promise<string> {
     try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-
         const prompt = systemPrompt
             ? `${systemPrompt}\n\nContext:\n${context}\n\nUser Question: ${query}`
             : `Context:\n${context}\n\nUser Question: ${query}`;
 
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        return response.text();
+        const result = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+        });
+
+        return result.text || '';
     } catch (error: any) {
         console.error('LLM generation error:', error);
 
@@ -62,8 +63,6 @@ export async function generateStructuredResponse(
     modelName: string = 'gemini-2.5-flash'
 ): Promise<RAGResponse> {
     try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-
         const citationsText = citations
             .map((c, i) => `[${i + 1}] ${c.bookTitle}, Page ${c.page || 'N/A'}: "${c.excerpt.substring(0, 100)}..."`)
             .join('\n');
@@ -87,8 +86,12 @@ Please provide a response in the following JSON format:
 
 Confidence should be between 0 and 1, where 1 is completely confident.`;
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        const result = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+        });
+
+        const responseText = result.text || '';
 
         // Try to parse JSON response
         try {
@@ -144,14 +147,6 @@ export async function classifyQueryIntent(
     modelName: string = 'gemini-2.5-flash' // Use fastest model
 ): Promise<'SEARCH' | 'CHAT'> {
     try {
-        const model = genAI.getGenerativeModel({
-            model: modelName,
-            generationConfig: {
-                temperature: 0.1, // Deterministic
-                maxOutputTokens: 10,
-            }
-        });
-
         const prompt = `You are a router. Classify the user's query into one of two categories:
 1. SEARCH: The user is asking for specific information, facts, summaries, or details that would be found in a book or document.
 2. CHAT: The user is greeting, thanking, asking about you, or making small talk that doesn't require looking up external information.
@@ -176,8 +171,16 @@ Intent: SEARCH
 Query: "${query}"
 Intent:`;
 
-        const result = await model.generateContent(prompt);
-        const text = result.response.text().trim().toUpperCase();
+        const result = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: {
+                temperature: 0.1, // Deterministic
+                maxOutputTokens: 10,
+            },
+        });
+
+        const text = (result.text || '').trim().toUpperCase();
 
         if (text.includes('SEARCH')) return 'SEARCH';
         return 'CHAT';

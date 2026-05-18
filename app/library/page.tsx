@@ -10,36 +10,19 @@ import {
     Plus,
     Search,
     Clock,
-    MoreVertical,
-    Sparkles,
     PlayCircle,
-    Book,
-    Heart,
-    Feather,
-    Rocket,
-    GraduationCap,
-    MoreHorizontal,
     Compass,
     Users,
-    Trash2
+    Trash2,
+    Library
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// Mock data extension since backend doesn't support these fields yet
 export interface EnhancedBook extends BookType {
-    category?: string;
     progress?: { currentPage: number, totalPages: number | null };
     lastRead?: Date;
     characterCount?: number;
 }
-
-const CATEGORIES = [
-    { id: 'fiction', name: 'Fiction', icon: Book, color: 'from-blue-500 to-indigo-600' },
-    { id: 'romance', name: 'Romance', icon: Heart, color: 'from-pink-500 to-rose-500' },
-    { id: 'poetry', name: 'Poetry', icon: Feather, color: 'from-purple-500 to-fuchsia-600' },
-    { id: 'scifi', name: 'Sci-Fi', icon: Rocket, color: 'from-cyan-500 to-blue-600' },
-    { id: 'academic', name: 'Academic', icon: GraduationCap, color: 'from-emerald-500 to-teal-600' },
-];
 
 export default function LibraryPage() {
     const router = useRouter();
@@ -86,11 +69,10 @@ export default function LibraryPage() {
             );
             const countMap = new Map(characterCounts.map(c => [c.bookId, c.count]));
 
-            const enrichedBooks = (data.books || []).map((book: any, index: number) => {
+            const enrichedBooks = (data.books || []).map((book: any) => {
                 const prog = progressMap.get(book.id);
                 return {
                     ...book,
-                    category: CATEGORIES[index % CATEGORIES.length].id, // Still demo category
                     progress: prog ? { currentPage: prog.currentPage, totalPages: prog.totalPages } : undefined,
                     lastRead: prog?.lastReadAt ? new Date(prog.lastReadAt) : new Date(book.createdAt),
                     characterCount: countMap.get(book.id) || 0,
@@ -109,17 +91,21 @@ export default function LibraryPage() {
         fetchBooks();
     }, [userId]);
 
-    // Group books by category
-    const categorizedBooks = CATEGORIES.reduce((acc, category) => {
-        acc[category.id] = books.filter(book => book.category === category.id);
-        return acc;
-    }, {} as Record<string, EnhancedBook[]>);
-
-    // Get recently read books (actual logic)
+    // Get recently read books
     const recentBooks = [...books]
         .filter(b => b.progress !== undefined)
         .sort((a, b) => (b.lastRead?.getTime() || 0) - (a.lastRead?.getTime() || 0))
         .slice(0, 5);
+
+    // Filter books by search
+    const filteredBooks = books.filter(book => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+            book.title?.toLowerCase().includes(q) ||
+            book.author?.toLowerCase().includes(q)
+        );
+    });
 
     const handleOpenBook = (book: EnhancedBook) => {
         setSelectedBook(book);
@@ -127,19 +113,29 @@ export default function LibraryPage() {
     };
 
     const handleDeleteBook = async (e: React.MouseEvent, bookId: string) => {
-        e.stopPropagation(); // Prevent opening book
+        e.stopPropagation();
         if (!confirm('Are you sure you want to delete this book? This cannot be undone.')) return;
 
         try {
             await userAPI.deleteBook(bookId);
             setBooks(books.filter(b => b.id !== bookId));
-            // Also update selected book if it's the one being deleted
-            // if (selectedBook?.id === bookId) setSelectedBook(null); 
         } catch (error) {
             console.error('Failed to delete book:', error);
             alert('Failed to delete book. Please try again.');
         }
     };
+
+    // Color palette for book covers (cycles through)
+    const coverGradients = [
+        'from-indigo-600 to-blue-700',
+        'from-purple-600 to-fuchsia-700',
+        'from-rose-600 to-pink-700',
+        'from-amber-600 to-orange-700',
+        'from-emerald-600 to-teal-700',
+        'from-cyan-600 to-sky-700',
+        'from-violet-600 to-indigo-700',
+        'from-red-600 to-rose-700',
+    ];
 
     return (
         <div
@@ -240,92 +236,121 @@ export default function LibraryPage() {
                     </section>
                 )}
 
-                {/* Categorized Bookshelves */}
-                <div className="space-y-12 pb-20">
-                    {CATEGORIES.map((category) => {
-                        const categoryBooks = categorizedBooks[category.id] || [];
-                        if (categoryBooks.length === 0) return null;
+                {/* All Books — Flat Grid */}
+                <section className="space-y-6 pb-20 animate-fade-in">
+                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600">
+                            <Library className="w-5 h-5 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">All Books</h2>
+                        <span className="text-sm text-gray-500 font-mono ml-auto">
+                            {filteredBooks.length} {filteredBooks.length === 1 ? 'Book' : 'Books'}
+                        </span>
+                    </div>
 
-                        const Icon = category.icon;
+                    {loading ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <div key={i} className="animate-pulse">
+                                    <div className="aspect-[2/3] rounded-lg bg-white/5 mb-3" />
+                                    <div className="h-3 bg-white/5 rounded w-3/4 mb-2" />
+                                    <div className="h-2 bg-white/5 rounded w-1/2" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : filteredBooks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-24 text-center">
+                            <BookOpen className="w-16 h-16 text-gray-700 mb-4" />
+                            <h3 className="text-xl font-bold text-gray-400 mb-2">
+                                {searchQuery ? 'No books match your search' : 'Your library is empty'}
+                            </h3>
+                            <p className="text-gray-600 mb-6 max-w-sm">
+                                {searchQuery
+                                    ? 'Try a different search term.'
+                                    : 'Upload your first book to start exploring characters and stories.'}
+                            </p>
+                            {!searchQuery && (
+                                <button
+                                    onClick={() => router.push('/upload')}
+                                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-lg hover:shadow-indigo-500/25 transition-all"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    Upload a Book
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                            {filteredBooks.map((book, index) => (
+                                <motion.div
+                                    key={book.id}
+                                    whileHover={{ y: -5 }}
+                                    onClick={() => handleOpenBook(book)}
+                                    className="group cursor-pointer"
+                                >
+                                    <div className="relative aspect-[2/3] mb-4 rounded-lg bg-gray-900 border border-white/10 shadow-lg overflow-hidden transition-all group-hover:shadow-[0_0_30px_-10px_rgba(255,255,255,0.2)]">
+                                        {/* Gradient Cover */}
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${coverGradients[index % coverGradients.length]} opacity-20 group-hover:opacity-30 transition-opacity`} />
 
-                        return (
-                            <section key={category.id} className="space-y-6 animate-fade-in">
-                                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                                    <div className={`p-2 rounded-lg bg-gradient-to-br ${category.color} bg-opacity-20`}>
-                                        <Icon className="w-5 h-5 text-white" />
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                                            <BookOpen className="w-8 h-8 text-white/50 mb-2 group-hover:scale-110 transition-transform duration-300" />
+                                            <h3 className="text-sm font-bold text-white/90 line-clamp-3 leading-tight">
+                                                {book.title}
+                                            </h3>
+                                        </div>
+
+                                        {/* Progress bar on cover */}
+                                        {book.progress && book.progress.totalPages && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-indigo-400 to-purple-400"
+                                                    style={{ width: `${(book.progress.currentPage / book.progress.totalPages) * 100}%` }}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Hover Overlay */}
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px] flex flex-col items-center justify-center p-4 gap-3">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); router.push(`/book/${book.id}/modes`); }}
+                                                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all hover:scale-105 flex items-center gap-1.5"
+                                            >
+                                                <Compass className="w-3.5 h-3.5" /> Explore
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleOpenBook(book); }}
+                                                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all border border-white/20"
+                                            >
+                                                Read
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleDeleteBook(e, book.id)}
+                                                className="p-2 bg-red-500/20 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all transform scale-90 group-hover:scale-100"
+                                                title="Delete Book"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-white">{category.name}</h2>
-                                    <span className="text-sm text-gray-500 font-mono ml-auto">
-                                        {categoryBooks.length} Books
-                                    </span>
-                                </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                                    {categoryBooks.map((book) => (
-                                        <motion.div
-                                            key={book.id}
-                                            whileHover={{ y: -5 }}
-                                            onClick={() => handleOpenBook(book)}
-                                            className="group cursor-pointer"
-                                        >
-                                            <div className="relative aspect-[2/3] mb-4 rounded-lg bg-gray-900 border border-white/10 shadow-lg overflow-hidden transition-all group-hover:shadow-[0_0_30px_-10px_rgba(255,255,255,0.2)]">
-                                                {/* Gradient Cover Mock */}
-                                                <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-20 group-hover:opacity-30 transition-opacity`} />
-
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-                                                    <BookOpen className="w-8 h-8 text-white/50 mb-2 group-hover:scale-110 transition-transform duration-300" />
-                                                    <h3 className="text-sm font-bold text-white/90 line-clamp-3 leading-tight">
-                                                        {book.title}
-                                                    </h3>
-                                                </div>
-
-                                                {/* Hover Overlay */}
-                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px] flex flex-col items-center justify-center p-4 gap-3">
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); router.push(`/book/${book.id}/modes`); }}
-                                                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all hover:scale-105 flex items-center gap-1.5"
-                                                    >
-                                                        <Compass className="w-3.5 h-3.5" /> Explore
-                                                    </button>
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); handleOpenBook(book); }}
-                                                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-full transform scale-90 group-hover:scale-100 transition-all border border-white/20"
-                                                    >
-                                                        Read
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleDeleteBook(e, book.id)}
-                                                        className="p-2 bg-red-500/20 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all transform scale-90 group-hover:scale-100"
-                                                        title="Delete Book"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <h3 className="text-sm font-medium text-gray-200 truncate group-hover:text-white transition-colors">
-                                                    {book.title}
-                                                </h3>
-                                                <p className="text-xs text-gray-500 truncate">
-                                                    {book.author || 'Unknown'}
-                                                </p>
-                                                {book.characterCount ? (
-                                                    <p className="text-[10px] text-gray-600 flex items-center gap-1 mt-1">
-                                                        <Users className="w-3 h-3" /> {book.characterCount} chars
-                                                    </p>
-                                                ) : null}
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            </section>
-                        );
-                    })}
-
-                    {/* Fallback for Uncategorized / Others if needed */}
-                    {/* ... */}
-                </div>
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-medium text-gray-200 truncate group-hover:text-white transition-colors">
+                                            {book.title}
+                                        </h3>
+                                        <p className="text-xs text-gray-500 truncate">
+                                            {book.author || 'Unknown'}
+                                        </p>
+                                        {book.characterCount ? (
+                                            <p className="text-[10px] text-gray-600 flex items-center gap-1 mt-1">
+                                                <Users className="w-3 h-3" /> {book.characterCount} characters
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                </section>
             </div>
         </div>
     );

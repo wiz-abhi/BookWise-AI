@@ -1,86 +1,89 @@
-import { pipeline } from '@xenova/transformers';
+import { GoogleGenAI } from '@google/genai';
+import dotenv from 'dotenv';
 
-const MODEL_NAME = 'Xenova/all-mpnet-base-v2';
-const BATCH_SIZE = 32;
+dotenv.config();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let extractorPipeline: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let modelLoadingPromise: Promise<any> | null = null;
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-async function getExtractor(): Promise<any> {
-    // Return existing pipeline if already loaded
-    if (extractorPipeline) {
-        return extractorPipeline;
-    }
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+const EMBEDDING_DIMS = 768; // Match our pgvector column: vector(768)
 
-    // If loading is in progress, wait for it
-    if (modelLoadingPromise) {
-        return modelLoadingPromise;
-    }
-
-    // Start loading the model
-    modelLoadingPromise = (async () => {
-        console.log(`🔄 Loading local embedding model: ${MODEL_NAME}...`);
-        const extractor = await pipeline('feature-extraction', MODEL_NAME, {
-            quantized: true, // Use quantized model for faster loading/lower memory
-        });
-        console.log(`✅ Local embedding model loaded: ${MODEL_NAME}`);
-        extractorPipeline = extractor;
-        return extractor;
-    })();
-
-    return modelLoadingPromise;
-}
+// Free tier: ~1500 RPM. Process sequentially in small batches with delays.
+const BATCH_SIZE = 5;       // Only 5 concurrent requests at a time
+const DELAY_MS = 500;       // 500ms pause between batches to stay under rate limit
 
 /**
- * Generate embeddings for text using a local transformer model
+ * Generate embeddings for text using Gemini gemini-embedding-001
+ * Rate-limit aware: processes in small sequential batches.
  * @param texts - Array of text strings to embed
  * @returns Array of embedding vectors (768 dimensions each)
  */
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-    if (texts.length === 0) {
-        return [];
-    }
+    if (texts.length === 0) return [];
 
-    const extractor = await getExtractor();
-    const embeddings: number[][] = [];
-
-    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-        const batch = texts.slice(i, i + BATCH_SIZE);
-        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+    try {
+        const embeddings: number[][] = [];
         const totalBatches = Math.ceil(texts.length / BATCH_SIZE);
 
-        console.log(
-            `Generating embeddings for batch ${batchNumber}/${totalBatches} (${batch.length} texts)`
-        );
+        for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+            const batch = texts.slice(i, i + BATCH_SIZE);
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
-        // Process batch - the pipeline can accept an array of strings
-        const output = await extractor(batch, {
-            pooling: 'mean',
-            normalize: true,
-        });
+            if (batchNumber % 20 === 1 || batchNumber === totalBatches) {
+                console.log(
+                    `Generating embeddings: batch ${batchNumber}/${totalBatches} (${embeddings.length + batch.length}/${texts.length} texts)`
+                );
+            }
 
-        // Extract embeddings from output tensor
-        // Output shape: [batch_size, 768]
-        const batchEmbeddings: number[][] = [];
-        for (let j = 0; j < batch.length; j++) {
-            // Get the embedding for the j-th item in the batch
-            const embedding = Array.from(output[j].data as Float32Array);
-            batchEmbeddings.push(embedding);
+            // Process this small batch concurrently
+            const batchEmbeddings = await Promise.all(
+                batch.map(async (text) => {
+                    const result = await ai.models.embedContent({
+                        model: EMBEDDING_MODEL,
+                        contents: text,
+                        config: {
+                            taskType: 'RETRIEVAL_DOCUMENT',
+                            outputDimensionality: EMBEDDING_DIMS,
+                        },
+                    });
+                    return result.embeddings![0].values!;
+                })
+            );
+
+            embeddings.push(...batchEmbeddings);
+
+            // Delay between batches to stay under rate limit
+            if (i + BATCH_SIZE < texts.length) {
+                await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+            }
         }
 
-        embeddings.push(...batchEmbeddings);
+        console.log(`✅ Generated ${embeddings.length} embeddings via ${EMBEDDING_MODEL} (${EMBEDDING_DIMS}d)`);
+        return embeddings;
+    } catch (error: any) {
+        // If we hit 429, wait and retry once
+        if (error?.status === 429) {
+            console.warn('⚠️ Rate limited by Gemini API. Waiting 60s before retry...');
+            await new Promise(resolve => setTimeout(resolve, 60000));
+            return generateEmbeddings(texts); // Retry the full call
+        }
+        console.error('Embedding generation error:', error);
+        throw new Error('Failed to generate embeddings');
     }
-
-    console.log(`✅ Generated ${embeddings.length} embeddings with local model ${MODEL_NAME}`);
-    return embeddings;
 }
 
 /**
- * Generate a single embedding
+ * Generate a single embedding for a query
+ * Uses RETRIEVAL_QUERY task type for queries (different from document embeddings)
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-    const embeddings = await generateEmbeddings([text]);
-    return embeddings[0];
+    const result = await ai.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: text,
+        config: {
+            taskType: 'RETRIEVAL_QUERY',
+            outputDimensionality: EMBEDDING_DIMS,
+        },
+    });
+    return result.embeddings![0].values!;
 }

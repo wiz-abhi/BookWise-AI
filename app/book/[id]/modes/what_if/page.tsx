@@ -7,7 +7,7 @@ import { modeAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
 import { Wand2, Loader2, GitBranch, Settings, ArrowLeft } from 'lucide-react';
 import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
-import ReactMarkdown from 'react-markdown';
+import { WhatIfStreamRenderer } from '@/components/chat/WhatIfStreamRenderer';
 
 export default function WhatIfModePage() {
     const params = useParams();
@@ -59,11 +59,11 @@ export default function WhatIfModePage() {
         }
     };
 
-    if (authLoading || loadingChars) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>;
+    if (authLoading || loadingChars) return <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center"><Loader2 className="w-8 h-8 text-amber-500 animate-spin" /></div>;
 
     return (
-        <div ref={containerRef} className="min-h-screen bg-black text-gray-100 pt-28 pb-20 px-4 sm:px-6 relative">
-            <div className="interactive-bg" />
+        <div ref={containerRef} className="min-h-screen bg-[#0d0d0d] text-gray-100 pt-16 sm:pt-28 pb-32 px-4 sm:px-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-900/10 to-black pointer-events-none" />
 
             {/* Floating Back Button */}
             <button
@@ -98,11 +98,11 @@ export default function WhatIfModePage() {
                                 onClick={() => { setSelectedChar(c); setIsConfigOpen(false); }}
                                 className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 ${
                                     selectedChar?.id === c.id 
-                                        ? 'bg-gradient-to-r from-indigo-500/20 to-blue-600/20 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]' 
+                                        ? 'bg-gradient-to-r from-amber-500/20 to-orange-600/20 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' 
                                         : 'bg-white/5 border border-white/5 hover:bg-white/10'
                                 }`}
                             >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 mt-0.5 shadow-inner">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 mt-0.5 shadow-inner">
                                     {c.name.charAt(0)}
                                 </div>
                                 <div className="min-w-0">
@@ -118,7 +118,7 @@ export default function WhatIfModePage() {
             <div className="max-w-4xl mx-auto space-y-8 relative z-10 pt-10">
                 {!result && (
                     <div className="space-y-6 animate-fade-in flex flex-col items-center max-w-2xl mx-auto">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20 mb-4">
                             <Wand2 className="w-10 h-10 text-white" />
                         </div>
                         <h2 className="text-2xl font-bold text-white text-center">What If?</h2>
@@ -126,11 +126,11 @@ export default function WhatIfModePage() {
 
                         {/* Scenario Input */}
                         <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3 w-full">
-                            <label className="text-sm font-semibold text-white flex items-center gap-2"><GitBranch className="w-4 h-4 text-indigo-400" />What if {selectedChar?.name || 'they'} had...</label>
-                            <textarea value={scenario} onChange={(e) => setScenario(e.target.value)} placeholder={`e.g. "told the truth instead of lying?"`} rows={4} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none transition-all" />
+                            <label className="text-sm font-semibold text-white flex items-center gap-2"><GitBranch className="w-4 h-4 text-amber-400" />What if {selectedChar?.name || 'they'} had...</label>
+                            <textarea value={scenario} onChange={(e) => setScenario(e.target.value)} placeholder={`e.g. "told the truth instead of lying?"`} rows={4} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500/50 resize-none transition-all" />
                         </div>
 
-                        <button onClick={handleSubmit} disabled={!selectedChar || !scenario.trim() || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-800 disabled:opacity-50 text-white font-semibold transition-all flex items-center justify-center gap-2 shadow-lg">
+                        <button onClick={handleSubmit} disabled={!selectedChar || !scenario.trim() || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 disabled:from-gray-700 disabled:to-gray-800 disabled:opacity-50 text-white font-semibold transition-all flex items-center justify-center gap-2 shadow-lg">
                             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
                             {loading ? 'Exploring the alternate path...' : 'Explore This What-If'}
                         </button>
@@ -138,17 +138,15 @@ export default function WhatIfModePage() {
                 )}
 
                 {result && (
-                    <div className="space-y-6 animate-fade-in">
-                        <div className="glass-panel rounded-2xl p-6 border-white/10">
-                            <div className="prose prose-sm prose-invert max-w-none prose-headings:text-indigo-300 prose-p:leading-relaxed prose-strong:text-indigo-200"><ReactMarkdown>{result.answer}</ReactMarkdown></div>
-                        </div>
+                    <div className="space-y-6 animate-fade-in w-full max-w-none">
+                        <WhatIfStreamRenderer content={result.answer} />
                         {result.citations?.length > 0 && (
                             <div className="glass-panel rounded-xl p-4 border-white/10">
                                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-3">Textual Evidence</p>
                                 <div className="flex flex-wrap gap-2">{result.citations.map((c: any, i: number) => (<span key={i} className="px-2.5 py-1 text-xs rounded-lg bg-white/5 border border-white/10 text-gray-400">{c.bookTitle} · p.{c.page || '?'}</span>))}</div>
                             </div>
                         )}
-                        <button onClick={() => { setResult(null); setScenario(''); }} className="text-sm text-gray-500 hover:text-white transition-colors flex items-center gap-2"><ArrowLeft className="w-3 h-3" /> Explore another what-if</button>
+                        <button onClick={() => { setResult(null); setScenario(''); }} className="text-sm text-gray-500 hover:text-white transition-colors flex items-center gap-2 mt-8 mx-auto"><ArrowLeft className="w-3 h-3" /> Explore another what-if</button>
                     </div>
                 )}
             </div>

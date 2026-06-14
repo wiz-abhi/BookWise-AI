@@ -7,7 +7,7 @@ import { modeAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
 import { Brain, Loader2, Search, Settings, ArrowLeft } from 'lucide-react';
 import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
-import ReactMarkdown from 'react-markdown';
+import { MotiveStreamRenderer } from '@/components/chat/MotiveStreamRenderer';
 
 export default function MotiveDecoderModePage() {
     const params = useParams();
@@ -59,11 +59,11 @@ export default function MotiveDecoderModePage() {
         }
     };
 
-    if (authLoading || loadingChars) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-8 h-8 text-rose-500 animate-spin" /></div>;
+    if (authLoading || loadingChars) return <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center"><Loader2 className="w-8 h-8 text-rose-500 animate-spin" /></div>;
 
     return (
-        <div ref={containerRef} className="min-h-screen bg-black text-gray-100 pt-28 pb-20 px-4 sm:px-6 relative">
-            <div className="interactive-bg" />
+        <div ref={containerRef} className="min-h-screen bg-[#0d0d0d] text-gray-100 pt-16 sm:pt-28 pb-32 px-4 sm:px-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-rose-900/5 to-black pointer-events-none" />
 
             {/* Floating Back Button */}
             <button
@@ -135,17 +135,15 @@ export default function MotiveDecoderModePage() {
                 )}
 
                 {result && (
-                    <div className="space-y-6 animate-fade-in">
-                        <div className="glass-panel rounded-2xl p-6 border-white/10">
-                            <div className="prose prose-sm prose-invert max-w-none prose-headings:text-rose-300 prose-p:leading-relaxed prose-strong:text-rose-200"><ReactMarkdown>{result.answer}</ReactMarkdown></div>
-                        </div>
+                    <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
+                        <MotiveStreamRenderer content={result.answer} characterName={selectedChar?.name || 'Character'} />
                         {result.citations?.length > 0 && (
                             <div className="glass-panel rounded-xl p-4 border-white/10">
                                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-3">Evidence Sources</p>
                                 <div className="flex flex-wrap gap-2">{result.citations.map((c: any, i: number) => (<span key={i} className="px-2.5 py-1 text-xs rounded-lg bg-white/5 border border-white/10 text-gray-400">{c.bookTitle} · p.{c.page || '?'}</span>))}</div>
                             </div>
                         )}
-                        <button onClick={() => { setResult(null); setActionQuery(''); }} className="text-sm text-gray-500 hover:text-white transition-colors flex items-center gap-2"><ArrowLeft className="w-3 h-3" /> Decode another</button>
+                        <button onClick={() => { setResult(null); setActionQuery(''); }} className="text-sm text-gray-500 hover:text-white transition-colors flex items-center gap-2 mt-8"><ArrowLeft className="w-3 h-3" /> Decode another action</button>
                     </div>
                 )}
             </div>

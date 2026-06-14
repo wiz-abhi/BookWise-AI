@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useChatStore } from '@/lib/store';
 import { modeAPI, progressAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
+
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList } from '@/components/chat/MessageList';
 import {
@@ -112,26 +113,40 @@ export default function CompanionModePage() {
     }
 
     return (
-        <div ref={containerRef} className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden relative">
-            <div className="interactive-bg" />
+        <div ref={containerRef} className="flex flex-col h-screen bg-[#0d0d0d] text-gray-100 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-900/10 to-black pointer-events-none" />
 
-            {/* Floating Back Button */}
-            <button
-                onClick={() => router.push(`/book/${bookId}/modes`)}
-                className="fixed top-6 left-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                title="Back to Modes"
-            >
-                <ArrowLeft className="w-5 h-5" />
-            </button>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/5 bg-[#0d0d0d]/80 backdrop-blur-md relative z-10 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => router.push(`/book/${bookId}/modes`)}
+                        className="p-2 rounded-xl glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                        title="Back to Modes"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex flex-col">
+                        <h1 className="text-lg font-serif text-teal-50 font-medium">Reading {selectedBook?.title || 'Book'} together</h1>
+                        <button 
+                            onClick={() => setIsConfigOpen(true)}
+                            className="flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-[10px] text-teal-400 hover:bg-teal-500/20 transition-colors self-start"
+                        >
+                            🔒 Spoiler-free up to Page {readingProgress?.currentPage || '?'}
+                        </button>
+                    </div>
+                </div>
+                
+                <button
+                    onClick={() => setIsConfigOpen(true)}
+                    className="p-2 rounded-xl glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                    title="Configure Mode"
+                >
+                    <Settings className="w-4 h-4" />
+                </button>
+            </div>
 
-            {/* Floating Config Button */}
-            <button
-                onClick={() => setIsConfigOpen(true)}
-                className="fixed top-6 right-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                title="Configure Mode"
-            >
-                <Settings className="w-5 h-5" />
-            </button>
+
 
             <ModeConfigModal
                 isOpen={isConfigOpen}
@@ -163,11 +178,11 @@ export default function CompanionModePage() {
                         <div className="h-full flex flex-col items-center justify-center space-y-8">
                             {/* Welcome message */}
                             <div className="text-center space-y-4 max-w-lg">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center mx-auto">
-                                    <Coffee className="w-8 h-8 text-amber-400" />
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/20 flex items-center justify-center mx-auto">
+                                    <span className="text-3xl">☕</span>
                                 </div>
-                                <h2 className="text-xl font-bold text-white">Hey! Ready to chat about the book? 📖</h2>
-                                <p className="text-gray-500 text-sm leading-relaxed">
+                                <h2 className="text-xl font-bold text-teal-50">Hey! Ready to chat about the book? 📖</h2>
+                                <p className="text-teal-100/60 text-sm leading-relaxed">
                                     I've read up to the same page as you. Let's discuss what's happened, gossip about the characters, or try to figure out what's coming next. No spoilers, I promise!
                                 </p>
                             </div>
@@ -180,9 +195,9 @@ export default function CompanionModePage() {
                                         <button
                                             key={idx}
                                             onClick={() => handleSendMessage(action.prompt)}
-                                            className="flex items-center gap-3 p-4 rounded-xl glass-panel border-white/5 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all text-left group"
+                                            className="flex items-center gap-3 p-4 rounded-xl glass-panel border-white/5 hover:border-teal-500/30 hover:bg-teal-500/5 transition-all text-left group"
                                         >
-                                            <Icon className="w-5 h-5 text-amber-400/60 group-hover:text-amber-400 transition-colors flex-shrink-0" />
+                                            <Icon className="w-5 h-5 text-teal-400/60 group-hover:text-teal-400 transition-colors flex-shrink-0" />
                                             <span className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors">{action.label}</span>
                                         </button>
                                     );
@@ -190,8 +205,8 @@ export default function CompanionModePage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="pb-4">
-                            <MessageList messages={messages} />
+                        <div className="pb-16">
+                            <MessageList messages={messages} mode="companion" onReaction={handleSendMessage} isLoading={isLoading} />
                             <div ref={messagesEndRef} className="pt-2" />
                         </div>
                     )}
@@ -202,7 +217,7 @@ export default function CompanionModePage() {
                     <ChatInput
                         onSend={handleSendMessage}
                         isLoading={isLoading}
-                        placeholder="Ask your reading buddy anything..."
+                        placeholder="Gossip, ask, or vent about the book..."
                     />
                 </div>
             </main>

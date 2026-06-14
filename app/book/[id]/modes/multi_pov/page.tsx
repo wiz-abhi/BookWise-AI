@@ -7,7 +7,7 @@ import { modeAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
 import { Eye, Loader2, Check, Settings, ArrowLeft } from 'lucide-react';
 import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
-import ReactMarkdown from 'react-markdown';
+import { MultiPovStreamRenderer } from '@/components/chat/MultiPovStreamRenderer';
 
 export default function MultiPOVModePage() {
     const params = useParams();
@@ -86,15 +86,15 @@ export default function MultiPOVModePage() {
 
     if (authLoading || loadingChars) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+            <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
             </div>
         );
     }
 
     return (
-        <div ref={containerRef} className="min-h-screen bg-black text-gray-100 pt-28 pb-20 px-4 sm:px-6 relative">
-            <div className="interactive-bg" />
+        <div ref={containerRef} className="min-h-screen bg-[#0d0d0d] text-gray-100 pt-16 sm:pt-28 pb-32 px-4 sm:px-6 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 to-black pointer-events-none" />
 
             {/* Floating Back Button */}
             <button
@@ -133,12 +133,12 @@ export default function MultiPOVModePage() {
                                     onClick={() => toggleCharacter(char.id)}
                                     className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${
                                         isSelected
-                                            ? 'bg-gradient-to-br from-cyan-500/20 to-teal-500/20 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                                            ? 'bg-gradient-to-br from-indigo-500/20 to-blue-500/20 border-indigo-500/40 shadow-[0_0_10px_rgba(99,102,241,0.2)]'
                                             : 'bg-white/5 border-white/5 hover:bg-white/10'
                                     }`}
                                 >
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-inner ${
-                                        isSelected ? 'bg-gradient-to-br from-cyan-500 to-teal-500 text-white' : 'bg-white/10 text-gray-400'
+                                        isSelected ? 'bg-gradient-to-br from-indigo-500 to-blue-500 text-white' : 'bg-white/10 text-gray-400'
                                     }`}>
                                         {isSelected ? <Check className="w-4 h-4" /> : char.name.charAt(0)}
                                     </div>
@@ -158,8 +158,9 @@ export default function MultiPOVModePage() {
                 {/* Input Panel */}
                 {!result && (
                     <div className="space-y-6 animate-fade-in flex flex-col items-center max-w-2xl mx-auto">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-4">
-                            <Eye className="w-10 h-10 text-white" />
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 mix-blend-screen" />
+                            <Eye className="w-10 h-10 text-white relative z-10" />
                         </div>
                         <h2 className="text-2xl font-bold text-white text-center">Multi-POV Replay</h2>
                         <p className="text-sm text-gray-400 text-center max-w-md">Experience the same scene from the perspectives of your selected characters.</p>
@@ -167,7 +168,7 @@ export default function MultiPOVModePage() {
                         {/* Scene Description */}
                         <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3 w-full">
                             <label className="text-sm font-semibold text-white flex items-center gap-2">
-                                <Eye className="w-4 h-4 text-cyan-400" />
+                                <Eye className="w-4 h-4 text-indigo-400" />
                                 Describe the scene
                             </label>
                             <textarea
@@ -175,7 +176,7 @@ export default function MultiPOVModePage() {
                                 onChange={(e) => setSceneDescription(e.target.value)}
                                 placeholder='e.g. "The dinner party scene where Tom confronts Gatsby"'
                                 rows={4}
-                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/30 resize-none transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/30 resize-none transition-all"
                             />
                         </div>
 
@@ -185,7 +186,7 @@ export default function MultiPOVModePage() {
                         <button
                             onClick={handleSubmit}
                             disabled={selectedChars.length < 2 || !sceneDescription.trim() || loading}
-                            className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 disabled:from-gray-700 disabled:to-gray-800 disabled:opacity-50 text-white font-semibold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-cyan-500/20"
+                            className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-800 disabled:opacity-50 text-white font-semibold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-indigo-500/20"
                         >
                             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Eye className="w-5 h-5" />}
                             {loading ? 'Generating perspectives...' : 'Generate Multi-POV Replay'}
@@ -195,12 +196,8 @@ export default function MultiPOVModePage() {
 
                 {/* Result */}
                 {result && (
-                    <div className="space-y-6 animate-fade-in">
-                        <div className="glass-panel rounded-2xl p-6 border-white/10">
-                            <div className="prose prose-sm prose-invert max-w-none prose-headings:text-cyan-300 prose-p:leading-relaxed prose-hr:border-white/10">
-                                <ReactMarkdown>{result.answer}</ReactMarkdown>
-                            </div>
-                        </div>
+                    <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
+                        <MultiPovStreamRenderer content={result.answer} />
 
                         {result.citations?.length > 0 && (
                             <div className="glass-panel rounded-xl p-4 border-white/10">

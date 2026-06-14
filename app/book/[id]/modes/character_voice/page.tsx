@@ -215,6 +215,7 @@ export default function CharacterVoiceModePage() {
                     )}
                 </div>
 
+                {/* Input */}
                 <div className="mt-2">
                     <ChatInput
                         onSend={handleSendMessage}

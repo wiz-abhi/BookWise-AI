@@ -16,7 +16,7 @@ export function MessageList({ messages }: MessageListProps) {
     }
 
     return (
-        <div className="flex flex-col space-y-6 pb-2">
+        <div className="flex flex-col space-y-4 pb-2">
             {messages.map((message, idx) => (
                 <div
                     key={message.id || idx}
@@ -32,12 +32,12 @@ export function MessageList({ messages }: MessageListProps) {
                         className={`flex-1 max-w-3xl ${message.role === 'user' ? 'flex justify-end' : ''}`}
                     >
                         <div
-                            className={`rounded-2xl p-5 shadow-xl backdrop-blur-sm border ${message.role === 'user'
+                            className={`rounded-2xl p-3 sm:p-4 shadow-xl backdrop-blur-sm border ${message.role === 'user'
                                 ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white border-white/10'
                                 : 'bg-white/5 text-gray-100 border-white/10 hover:bg-white/10 transition-colors'
                                 }`}
                         >
-                            <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-headings:text-white prose-a:text-indigo-300">
+                            <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-headings:text-white prose-a:text-indigo-300">
                                 <ReactMarkdown>{message.content}</ReactMarkdown>
                             </div>
 

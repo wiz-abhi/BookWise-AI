@@ -9,8 +9,9 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList } from '@/components/chat/MessageList';
 import {
     Coffee, ArrowLeft, BookOpen, Loader2, Sparkles,
-    MessageSquare, HelpCircle, Compass, Lightbulb
+    MessageSquare, HelpCircle, Compass, Lightbulb, Settings
 } from 'lucide-react';
+import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
 
 const QUICK_ACTIONS = [
     { label: "What just happened?", icon: HelpCircle, prompt: "Can you explain what just happened in the part I just read? I want to make sure I understood it correctly." },
@@ -25,6 +26,7 @@ export default function CompanionModePage() {
     const { selectedBook, messages, addMessage, clearMessages, isLoading, setIsLoading, readingProgress, setReadingProgress } = useChatStore();
     const { isAuthenticated, loading: authLoading } = useAuth();
 
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [conversationId] = useState(`comp-${Date.now()}-${Math.random().toString(36).substring(7)}`);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -109,46 +111,47 @@ export default function CompanionModePage() {
         <div ref={containerRef} className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden relative">
             <div className="interactive-bg" />
 
-            {/* Header */}
-            <header className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-40 glass-panel rounded-xl px-4 py-3 border-white/10 shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => router.push(`/book/${bookId}/modes`)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                        >
-                            <ArrowLeft className="w-4 h-4 text-gray-400" />
-                        </button>
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center shadow-inner">
-                            <Coffee className="w-4 h-4 text-amber-400" />
-                        </div>
-                        <div>
-                            <h1 className="text-base font-bold text-white tracking-wide">
-                                Companion Mode
-                            </h1>
-                            <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                                Reading {selectedBook?.title || 'your book'} together
-                                {readingProgress && (
-                                    <span className="text-amber-400 font-mono ml-1">
-                                        · pg {readingProgress.currentPage}{readingProgress.totalPages ? `/${readingProgress.totalPages}` : ''}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    </div>
+            {/* Floating Back Button */}
+            <button
+                onClick={() => router.push(`/book/${bookId}/modes`)}
+                className="fixed top-6 left-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Back to Modes"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
 
+            {/* Floating Config Button */}
+            <button
+                onClick={() => setIsConfigOpen(true)}
+                className="fixed top-6 right-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Configure Mode"
+            >
+                <Settings className="w-5 h-5" />
+            </button>
+
+            <ModeConfigModal
+                isOpen={isConfigOpen}
+                onClose={() => setIsConfigOpen(false)}
+                onBack={() => router.push(`/book/${bookId}/modes`)}
+                title="Companion Mode"
+                description={`Reading ${selectedBook?.title || 'your book'} together${readingProgress ? ` · pg ${readingProgress.currentPage}${readingProgress.totalPages ? `/${readingProgress.totalPages}` : ''}` : ''}`}
+            >
+                <div className="space-y-4">
                     <button
                         onClick={() => router.push(`/library/book/${bookId}`)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all font-medium shadow-[0_0_15px_rgba(245,158,11,0.15)]"
                     >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        Open Book
+                        <BookOpen className="w-4 h-4" />
+                        Open Book to Read
                     </button>
+                    <p className="text-xs text-gray-400 text-center px-4">
+                        Your companion will automatically sync with your reading progress. No spoilers ahead!
+                    </p>
                 </div>
-            </header>
+            </ModeConfigModal>
 
             {/* Main Chat Area */}
-            <main className="flex-1 flex flex-col h-full pt-40 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
+            <main className="flex-1 flex flex-col h-full pt-6 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">

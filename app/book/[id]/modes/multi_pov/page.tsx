@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useChatStore, Character } from '@/lib/store';
 import { modeAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
-import { Eye, ArrowLeft, Loader2, Send, Check, X } from 'lucide-react';
+import { Eye, Loader2, Check, Settings, ArrowLeft } from 'lucide-react';
+import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
 import ReactMarkdown from 'react-markdown';
 
 export default function MultiPOVModePage() {
@@ -16,6 +17,7 @@ export default function MultiPOVModePage() {
 
     const [characters, setCharacters] = useState<Character[]>([]);
     const [selectedChars, setSelectedChars] = useState<string[]>([]);
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [sceneDescription, setSceneDescription] = useState('');
     const [result, setResult] = useState<{ answer: string; citations: any[] } | null>(null);
     const [loading, setLoading] = useState(false);
@@ -85,26 +87,76 @@ export default function MultiPOVModePage() {
         <div ref={containerRef} className="min-h-screen bg-black text-gray-100 pt-28 pb-20 px-4 sm:px-6 relative">
             <div className="interactive-bg" />
 
-            <div className="max-w-4xl mx-auto space-y-8 relative z-10">
-                {/* Header */}
-                <div className="flex items-center gap-3">
-                    <button onClick={() => router.push(`/book/${bookId}/modes`)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                        <ArrowLeft className="w-4 h-4 text-gray-400" />
-                    </button>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-lg">
-                        <Eye className="w-5 h-5 text-white" />
+            {/* Floating Back Button */}
+            <button
+                onClick={() => router.push(`/book/${bookId}/modes`)}
+                className="fixed top-6 left-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Back to Modes"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <button
+                onClick={() => setIsConfigOpen(true)}
+                className="fixed top-6 right-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Configure Mode"
+            >
+                <Settings className="w-5 h-5" />
+            </button>
+
+            <ModeConfigModal
+                isOpen={isConfigOpen}
+                onClose={() => setIsConfigOpen(false)}
+                onBack={() => router.push(`/book/${bookId}/modes`)}
+                title="Multi-POV Replay"
+                description={`One scene, every perspective — ${selectedBook?.title || 'your book'}`}
+            >
+                <div className="space-y-4">
+                    <label className="text-sm font-semibold text-gray-300">
+                        Select 2-4 characters for perspectives
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {characters.map((char) => {
+                            const isSelected = selectedChars.includes(char.id);
+                            return (
+                                <button
+                                    key={char.id}
+                                    onClick={() => toggleCharacter(char.id)}
+                                    className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${
+                                        isSelected
+                                            ? 'bg-gradient-to-br from-cyan-500/20 to-teal-500/20 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                                            : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                    }`}
+                                >
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-inner ${
+                                        isSelected ? 'bg-gradient-to-br from-cyan-500 to-teal-500 text-white' : 'bg-white/10 text-gray-400'
+                                    }`}>
+                                        {isSelected ? <Check className="w-4 h-4" /> : char.name.charAt(0)}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>{char.name}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">Multi-POV Replay</h1>
-                        <p className="text-xs text-gray-500">One scene, every perspective — {selectedBook?.title}</p>
-                    </div>
+                    <p className="text-xs text-gray-500 text-center">{selectedChars.length}/4 characters selected (minimum 2)</p>
                 </div>
+            </ModeConfigModal>
+
+            <div className="max-w-4xl mx-auto space-y-8 relative z-10 pt-10">
 
                 {/* Input Panel */}
                 {!result && (
-                    <div className="space-y-6 animate-fade-in">
+                    <div className="space-y-6 animate-fade-in flex flex-col items-center max-w-2xl mx-auto">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 mb-4">
+                            <Eye className="w-10 h-10 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white text-center">Multi-POV Replay</h2>
+                        <p className="text-sm text-gray-400 text-center max-w-md">Experience the same scene from the perspectives of your selected characters.</p>
+
                         {/* Scene Description */}
-                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3">
+                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3 w-full">
                             <label className="text-sm font-semibold text-white flex items-center gap-2">
                                 <Eye className="w-4 h-4 text-cyan-400" />
                                 Describe the scene
@@ -112,44 +164,13 @@ export default function MultiPOVModePage() {
                             <textarea
                                 value={sceneDescription}
                                 onChange={(e) => setSceneDescription(e.target.value)}
-                                placeholder='e.g. "The dinner party scene where Tom confronts Gatsby about his past"'
-                                rows={3}
+                                placeholder='e.g. "The dinner party scene where Tom confronts Gatsby"'
+                                rows={4}
                                 className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/30 resize-none transition-all"
                             />
                         </div>
 
-                        {/* Character Selection */}
-                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-4">
-                            <label className="text-sm font-semibold text-white">
-                                Select 2-4 characters for perspectives
-                            </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {characters.map((char) => {
-                                    const isSelected = selectedChars.includes(char.id);
-                                    return (
-                                        <button
-                                            key={char.id}
-                                            onClick={() => toggleCharacter(char.id)}
-                                            className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${
-                                                isSelected
-                                                    ? 'bg-cyan-500/10 border-cyan-500/30 ring-1 ring-cyan-500/20'
-                                                    : 'bg-white/5 border-white/10 hover:bg-white/10'
-                                            }`}
-                                        >
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                                isSelected ? 'bg-gradient-to-br from-cyan-500 to-teal-500 text-white' : 'bg-white/10 text-gray-400'
-                                            }`}>
-                                                {isSelected ? <Check className="w-4 h-4" /> : char.name.charAt(0)}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className={`text-sm font-medium truncate ${isSelected ? 'text-cyan-300' : 'text-gray-300'}`}>{char.name}</p>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <p className="text-xs text-gray-600">{selectedChars.length}/4 characters selected (minimum 2)</p>
-                        </div>
+
 
                         {/* Submit */}
                         <button
@@ -166,8 +187,8 @@ export default function MultiPOVModePage() {
                 {/* Result */}
                 {result && (
                     <div className="space-y-6 animate-fade-in">
-                        <div className="glass-panel rounded-2xl p-8 border-white/10">
-                            <div className="prose prose-invert max-w-none prose-headings:text-cyan-300 prose-p:leading-relaxed prose-hr:border-white/10">
+                        <div className="glass-panel rounded-2xl p-6 border-white/10">
+                            <div className="prose prose-sm prose-invert max-w-none prose-headings:text-cyan-300 prose-p:leading-relaxed prose-hr:border-white/10">
                                 <ReactMarkdown>{result.answer}</ReactMarkdown>
                             </div>
                         </div>

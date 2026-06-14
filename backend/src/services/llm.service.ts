@@ -29,9 +29,10 @@ export async function generateResponse(
     modelName: string = 'gemini-2.5-flash'
 ): Promise<string> {
     try {
+        const formattingRules = `\n\nCRITICAL FORMATTING RULES:\n1. Break your response into readable paragraphs separated by empty lines.\n2. Use emojis naturally to make the tone friendly and human-like.\n3. NEVER include raw citation markers like [1] or [2] in your text.\n`;
         const prompt = systemPrompt
-            ? `${systemPrompt}\n\nContext:\n${context}\n\nUser Question: ${query}`
-            : `Context:\n${context}\n\nUser Question: ${query}`;
+            ? `${systemPrompt}${formattingRules}\nContext:\n${context}\n\nUser Question: ${query}`
+            : `${formattingRules}\nContext:\n${context}\n\nUser Question: ${query}`;
 
         const result = await ai.models.generateContent({
             model: modelName,
@@ -68,6 +69,11 @@ export async function generateStructuredResponse(
             .join('\n');
 
         const prompt = `${systemPrompt || 'You are a helpful AI assistant that answers questions based on provided context.'}
+
+CRITICAL FORMATTING RULES:
+1. Break your response into readable paragraphs separated by empty lines.
+2. Use emojis naturally to make the tone friendly and human-like.
+3. NEVER include raw citation markers like [1] or [2] in your text. The system tracks citations for you.
 
 Context from books:
 ${context}

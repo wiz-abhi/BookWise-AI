@@ -24,8 +24,8 @@ export default function Navbar() {
         }
     };
 
-    // Hide navbar on book reader page
-    if (pathname?.startsWith('/library/book/')) {
+    // Hide navbar on reader or mode chat pages
+    if (pathname?.startsWith('/library/book/') || pathname?.includes('/modes/')) {
         return null;
     }
 

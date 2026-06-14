@@ -7,7 +7,8 @@ import { modeAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList } from '@/components/chat/MessageList';
-import { Theater, ArrowLeft, Loader2, ChevronDown, User, Sparkles } from 'lucide-react';
+import { Loader2, Settings, ArrowLeft } from 'lucide-react';
+import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
 
 export default function CharacterVoiceModePage() {
     const params = useParams();
@@ -17,7 +18,7 @@ export default function CharacterVoiceModePage() {
 
     const [characters, setCharacters] = useState<Character[]>([]);
     const [loadingChars, setLoadingChars] = useState(true);
-    const [showCharPicker, setShowCharPicker] = useState(false);
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [conversationId] = useState(`cv-${Date.now()}-${Math.random().toString(36).substring(7)}`);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -84,7 +85,7 @@ export default function CharacterVoiceModePage() {
 
     const handleSelectCharacter = (char: Character) => {
         setSelectedCharacter(char);
-        setShowCharPicker(false);
+        setIsConfigOpen(false);
         clearMessages();
     };
 
@@ -100,64 +101,57 @@ export default function CharacterVoiceModePage() {
         <div ref={containerRef} className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden relative">
             <div className="interactive-bg" />
 
-            {/* Header */}
-            <header className="fixed top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-40 glass-panel rounded-xl px-4 py-3 border-white/10 shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => router.push(`/book/${bookId}/modes`)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                            <ArrowLeft className="w-4 h-4 text-gray-400" />
-                        </button>
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-600/20 border border-purple-500/30 flex items-center justify-center">
-                            <Theater className="w-4 h-4 text-purple-400" />
-                        </div>
-                        <div>
-                            <h1 className="text-base font-bold text-white">Character Voice</h1>
-                            <p className="text-[10px] text-gray-400">
-                                Speaking as a character from {selectedBook?.title || 'your book'}
-                            </p>
-                        </div>
-                    </div>
+            <button
+                onClick={() => router.push(`/book/${bookId}/modes`)}
+                className="fixed top-6 left-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Back to Modes"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
 
-                    {/* Character Picker */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowCharPicker(!showCharPicker)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-all text-sm"
-                        >
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-[10px] font-bold text-white">
-                                {selectedCharacter?.name?.charAt(0) || '?'}
-                            </div>
-                            <span className="text-purple-300 font-medium max-w-[120px] truncate">{selectedCharacter?.name || 'Select...'}</span>
-                            <ChevronDown className="w-3 h-3 text-purple-400" />
-                        </button>
+            <button
+                onClick={() => setIsConfigOpen(true)}
+                className="fixed top-6 right-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Configure Mode"
+            >
+                <Settings className="w-5 h-5" />
+            </button>
 
-                        {showCharPicker && (
-                            <div className="absolute right-0 top-full mt-2 w-72 glass-panel rounded-xl border border-white/10 shadow-2xl z-50 p-2 max-h-80 overflow-y-auto">
-                                {characters.map((char) => (
-                                    <button
-                                        key={char.id}
-                                        onClick={() => handleSelectCharacter(char)}
-                                        className={`w-full text-left p-3 rounded-lg hover:bg-white/5 transition-all flex items-start gap-3 ${
-                                            selectedCharacter?.id === char.id ? 'bg-purple-500/10 border border-purple-500/20' : ''
-                                        }`}
-                                    >
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5">
-                                            {char.name.charAt(0)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-white text-sm truncate">{char.name}</p>
-                                            <p className="text-xs text-gray-500 line-clamp-2">{char.description}</p>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+            <ModeConfigModal
+                isOpen={isConfigOpen}
+                onClose={() => setIsConfigOpen(false)}
+                onBack={() => router.push(`/book/${bookId}/modes`)}
+                title="Character Voice"
+                description={`Speaking as a character from ${selectedBook?.title || 'your book'}`}
+            >
+                <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-300 px-1">Select Character</p>
+                    <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
+                        {characters.map((char) => (
+                            <button
+                                key={char.id}
+                                onClick={() => handleSelectCharacter(char)}
+                                className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 ${
+                                    selectedCharacter?.id === char.id 
+                                        ? 'bg-gradient-to-r from-purple-500/20 to-violet-600/20 border border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
+                                        : 'bg-white/5 border border-white/5 hover:bg-white/10'
+                                }`}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 mt-0.5 shadow-inner">
+                                    {char.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-white truncate">{char.name}</p>
+                                    <p className="text-xs text-gray-400 line-clamp-2 mt-0.5">{char.description}</p>
+                                </div>
+                            </button>
+                        ))}
                     </div>
                 </div>
-            </header>
+            </ModeConfigModal>
 
             {/* Main Chat */}
-            <main className="flex-1 flex flex-col h-full pt-40 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
+            <main className="flex-1 flex flex-col h-full pt-6 pb-6 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-2 scrollbar-thin">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center space-y-6">

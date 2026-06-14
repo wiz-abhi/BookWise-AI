@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useChatStore, Character } from '@/lib/store';
 import { modeAPI } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
-import { Wand2, ArrowLeft, Loader2, ChevronDown, GitBranch } from 'lucide-react';
+import { Wand2, Loader2, GitBranch, Settings, ArrowLeft } from 'lucide-react';
+import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
 import ReactMarkdown from 'react-markdown';
 
 export default function WhatIfModePage() {
@@ -15,7 +16,7 @@ export default function WhatIfModePage() {
     const { isAuthenticated, loading: authLoading } = useAuth();
     const [characters, setCharacters] = useState<Character[]>([]);
     const [selectedChar, setSelectedChar] = useState<Character | null>(null);
-    const [showPicker, setShowPicker] = useState(false);
+    const [isConfigOpen, setIsConfigOpen] = useState(false);
     const [scenario, setScenario] = useState('');
     const [result, setResult] = useState<{ answer: string; citations: any[] } | null>(null);
     const [loading, setLoading] = useState(false);
@@ -49,43 +50,70 @@ export default function WhatIfModePage() {
     return (
         <div ref={containerRef} className="min-h-screen bg-black text-gray-100 pt-28 pb-20 px-4 sm:px-6 relative">
             <div className="interactive-bg" />
-            <div className="max-w-4xl mx-auto space-y-8 relative z-10">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => router.push(`/book/${bookId}/modes`)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><ArrowLeft className="w-4 h-4 text-gray-400" /></button>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg"><Wand2 className="w-5 h-5 text-white" /></div>
-                    <div><h1 className="text-2xl font-bold text-white">What If Explorer</h1><p className="text-xs text-gray-500">Alternate paths — {selectedBook?.title}</p></div>
-                </div>
 
+            {/* Floating Back Button */}
+            <button
+                onClick={() => router.push(`/book/${bookId}/modes`)}
+                className="fixed top-6 left-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Back to Modes"
+            >
+                <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <button
+                onClick={() => setIsConfigOpen(true)}
+                className="fixed top-6 right-6 z-50 p-3 rounded-full glass-panel border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                title="Configure Mode"
+            >
+                <Settings className="w-5 h-5" />
+            </button>
+
+            <ModeConfigModal
+                isOpen={isConfigOpen}
+                onClose={() => setIsConfigOpen(false)}
+                onBack={() => router.push(`/book/${bookId}/modes`)}
+                title="What If Explorer"
+                description={`Alternate paths — ${selectedBook?.title || 'your book'}`}
+            >
+                <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-300 px-1">Which character's path?</p>
+                    <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
+                        {characters.map((c) => (
+                            <button
+                                key={c.id}
+                                onClick={() => { setSelectedChar(c); setIsConfigOpen(false); }}
+                                className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 ${
+                                    selectedChar?.id === c.id 
+                                        ? 'bg-gradient-to-r from-indigo-500/20 to-blue-600/20 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]' 
+                                        : 'bg-white/5 border border-white/5 hover:bg-white/10'
+                                }`}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 mt-0.5 shadow-inner">
+                                    {c.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-white truncate">{c.name}</p>
+                                    <p className="text-xs text-gray-400 line-clamp-2 mt-0.5">{c.description}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </ModeConfigModal>
+
+            <div className="max-w-4xl mx-auto space-y-8 relative z-10 pt-10">
                 {!result && (
-                    <div className="space-y-6 animate-fade-in">
-                        {/* Character Picker */}
-                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3">
-                            <label className="text-sm font-semibold text-white">Which character's alternate path?</label>
-                            <div className="relative">
-                                <button onClick={() => setShowPicker(!showPicker)} className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white">{selectedChar?.name?.charAt(0) || '?'}</div>
-                                        <div className="text-left"><p className="text-sm font-medium text-white">{selectedChar?.name || 'Select'}</p><p className="text-xs text-gray-500 truncate max-w-[300px]">{selectedChar?.description}</p></div>
-                                    </div>
-                                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                                </button>
-                                {showPicker && (
-                                    <div className="absolute left-0 right-0 top-full mt-2 glass-panel rounded-xl border border-white/10 shadow-2xl z-50 p-2 max-h-60 overflow-y-auto">
-                                        {characters.map((c) => (
-                                            <button key={c.id} onClick={() => { setSelectedChar(c); setShowPicker(false); }} className={`w-full text-left p-3 rounded-lg hover:bg-white/5 transition-all flex items-center gap-3 ${selectedChar?.id === c.id ? 'bg-indigo-500/10' : ''}`}>
-                                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white">{c.name.charAt(0)}</div>
-                                                <span className="text-sm text-gray-300">{c.name}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                    <div className="space-y-6 animate-fade-in flex flex-col items-center max-w-2xl mx-auto">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4">
+                            <Wand2 className="w-10 h-10 text-white" />
                         </div>
+                        <h2 className="text-2xl font-bold text-white text-center">What If?</h2>
+                        <p className="text-sm text-gray-400 text-center max-w-md">Explore how the story would change if a different choice was made.</p>
 
                         {/* Scenario Input */}
-                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3">
-                            <label className="text-sm font-semibold text-white flex items-center gap-2"><GitBranch className="w-4 h-4 text-indigo-400" />What if they had...</label>
-                            <textarea value={scenario} onChange={(e) => setScenario(e.target.value)} placeholder={`e.g. "What if ${selectedChar?.name || 'they'} had told the truth instead of lying?" or "What if ${selectedChar?.name || 'they'} had left town before the confrontation?"`} rows={3} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none transition-all" />
+                        <div className="glass-panel rounded-2xl p-6 border-white/10 space-y-3 w-full">
+                            <label className="text-sm font-semibold text-white flex items-center gap-2"><GitBranch className="w-4 h-4 text-indigo-400" />What if {selectedChar?.name || 'they'} had...</label>
+                            <textarea value={scenario} onChange={(e) => setScenario(e.target.value)} placeholder={`e.g. "told the truth instead of lying?"`} rows={4} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none transition-all" />
                         </div>
 
                         <button onClick={handleSubmit} disabled={!selectedChar || !scenario.trim() || loading} className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-800 disabled:opacity-50 text-white font-semibold transition-all flex items-center justify-center gap-2 shadow-lg">
@@ -97,8 +125,8 @@ export default function WhatIfModePage() {
 
                 {result && (
                     <div className="space-y-6 animate-fade-in">
-                        <div className="glass-panel rounded-2xl p-8 border-white/10">
-                            <div className="prose prose-invert max-w-none prose-headings:text-indigo-300 prose-p:leading-relaxed prose-strong:text-indigo-200"><ReactMarkdown>{result.answer}</ReactMarkdown></div>
+                        <div className="glass-panel rounded-2xl p-6 border-white/10">
+                            <div className="prose prose-sm prose-invert max-w-none prose-headings:text-indigo-300 prose-p:leading-relaxed prose-strong:text-indigo-200"><ReactMarkdown>{result.answer}</ReactMarkdown></div>
                         </div>
                         {result.citations?.length > 0 && (
                             <div className="glass-panel rounded-xl p-4 border-white/10">

@@ -127,7 +127,11 @@ export default function UploadPage() {
     });
 
     const handleStartChat = () => {
-        router.push('/chat');
+        if (uploadedBook?.id) {
+            router.push(`/book/${uploadedBook.id}/modes`);
+        } else {
+            router.push('/library');
+        }
     };
 
     return (

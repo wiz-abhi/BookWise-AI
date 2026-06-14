@@ -99,7 +99,13 @@ export default function CharacterVoiceModePage() {
 
     return (
         <div ref={containerRef} className="flex flex-col h-screen bg-black text-gray-100 overflow-hidden relative">
-            <div className="interactive-bg" />
+            {/* Animated Literary Background */}
+            <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+                <div className="absolute inset-0 bg-black" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-900/20 via-black to-black opacity-60 animate-pulse" style={{ animationDuration: '8s' }} />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dust.png')] opacity-30 mix-blend-screen" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-screen" style={{ animation: 'pulse 4s infinite' }} />
+            </div>
 
             <button
                 onClick={() => router.push(`/book/${bookId}/modes`)}
@@ -151,7 +157,24 @@ export default function CharacterVoiceModePage() {
             </ModeConfigModal>
 
             {/* Main Chat */}
-            <main className="flex-1 flex flex-col h-full pt-6 pb-2 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
+            <main className="flex-1 flex flex-col h-full pt-4 pb-2 max-w-5xl mx-auto w-full px-4 sm:px-6 relative z-10 overflow-hidden">
+                
+                {/* Literary Header */}
+                <div className="flex flex-col items-center justify-center pt-2 pb-6 relative flex-shrink-0">
+                    <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-700/30 to-transparent -translate-y-1/2" />
+                    <div className="bg-black px-6 z-10 flex flex-col items-center">
+                        <span className="px-2 py-0.5 rounded-full bg-amber-900/30 border border-amber-700/30 text-[10px] text-amber-500 uppercase tracking-widest mb-2 font-semibold">
+                            In Character
+                        </span>
+                        <h1 className="text-2xl sm:text-3xl font-serif text-amber-50 font-medium tracking-wide">
+                            {selectedCharacter?.name || 'Select a Character'}
+                        </h1>
+                        <p className="text-xs sm:text-sm text-amber-200/50 mt-1 font-serif italic">
+                            {selectedBook?.title || 'Your Book'}
+                        </p>
+                    </div>
+                </div>
+
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pr-2 scrollbar-thin">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center space-y-6">
@@ -181,7 +204,12 @@ export default function CharacterVoiceModePage() {
                         </div>
                     ) : (
                         <div className="pb-4">
-                            <MessageList messages={messages} />
+                            <MessageList 
+                                messages={messages} 
+                                mode="character_voice" 
+                                characterName={selectedCharacter?.name}
+                                isLoading={isLoading}
+                            />
                             <div ref={messagesEndRef} className="pt-2" />
                         </div>
                     )}
@@ -191,7 +219,7 @@ export default function CharacterVoiceModePage() {
                     <ChatInput
                         onSend={handleSendMessage}
                         isLoading={isLoading}
-                        placeholder={`Ask ${selectedCharacter?.name || 'the character'} anything...`}
+                        placeholder={`Say something to ${selectedCharacter?.name || 'them'}...`}
                     />
                 </div>
             </main>

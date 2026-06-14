@@ -59,17 +59,26 @@ export default function MultiPOVModePage() {
     const handleSubmit = async () => {
         if (selectedChars.length < 2 || !sceneDescription.trim()) return;
         setLoading(true);
-        setResult(null);
+        setResult({ answer: '', citations: [] });
         try {
-            const response = await modeAPI.multiPOV({
-                bookId,
-                characterIds: selectedChars,
-                sceneDescription: sceneDescription.trim(),
-            });
-            setResult({ answer: response.answer, citations: response.citations });
+            await modeAPI.multiPOV(
+                {
+                    bookId,
+                    characterIds: selectedChars,
+                    sceneDescription: sceneDescription.trim(),
+                },
+                (chunk) => {
+                    setResult(prev => prev ? { ...prev, answer: prev.answer + chunk } : { answer: chunk, citations: [] });
+                },
+                (metadata) => {
+                    if (metadata.citations) {
+                        setResult(prev => prev ? { ...prev, citations: metadata.citations } : { answer: '', citations: metadata.citations });
+                    }
+                }
+            );
         } catch (error) {
             console.error('Multi-POV error:', error);
-            setResult({ answer: 'Something went wrong generating the perspectives. Please try again.', citations: [] });
+            setResult({ answer: 'Failed to analyze perspectives. Please try again.', citations: [] });
         } finally {
             setLoading(false);
         }

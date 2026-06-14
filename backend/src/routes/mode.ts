@@ -4,7 +4,7 @@ import { getBookCharacters, getCharacterById } from '../services/character.servi
 import { getProgress } from '../services/progress.service';
 import { getModePrompt, ExperienceMode } from '../services/prompts.service';
 import { searchAndRerank } from '../services/vectordb.service';
-import { generateStructuredResponse, Citation } from '../services/llm.service';
+import { generateStructuredResponse, generateStructuredResponseStream, Citation } from '../services/llm.service';
 import { query } from '../db';
 
 const router = Router();
@@ -42,6 +42,7 @@ async function handleModeQuery(
     bookId: string,
     userQuery: string,
     userId: string,
+    res: Response,
     options: {
         characterId?: string;
         characterIds?: string[];
@@ -137,6 +138,9 @@ async function handleModeQuery(
         enrichedContext = `CHARACTER PROFILE:\nName: ${character.name}\nDescription: ${character.description}\nPersonality: ${character.traits.personality?.join(', ')}\nMotivations: ${character.traits.motivations?.join(', ')}\nRelationships: ${character.relationships?.map(r => `${r.name} (${r.type}): ${r.description}`).join('; ')}\n\n---\n\nBOOK EXCERPTS:\n${context}`;
     }
 
+    // Send citations to the client immediately
+    res.write(`data: ${JSON.stringify({ type: 'metadata', citations })}\n\n`);
+
     // 8. Add conversation history to prompt if available
     let fullPrompt = systemPrompt;
     if (options.conversationHistory && options.conversationHistory.length > 0) {
@@ -145,11 +149,14 @@ async function handleModeQuery(
         fullPrompt += `\n\nRecent conversation:\n${historyStr}`;
     }
 
-    // 9. Generate LLM response
-    const response = await generateStructuredResponse(
+    // 9. Generate LLM response stream
+    const response = await generateStructuredResponseStream(
         userQuery,
         enrichedContext,
         citations,
+        (chunk) => {
+            res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`);
+        },
         fullPrompt
     );
 
@@ -181,7 +188,11 @@ router.post('/companion', authenticateToken, async (req: Request, res: Response)
             }
         }
 
-        const response = await handleModeQuery('companion', bookId, userQuery, userId, {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const response = await handleModeQuery('companion', bookId, userQuery, userId, res, {
             conversationHistory,
         });
 
@@ -208,15 +219,16 @@ router.post('/companion', authenticateToken, async (req: Request, res: Response)
             }
         }
 
-        res.json({
-            answer: response.answerText,
-            citations: response.citations,
-            confidence: response.confidence,
-            mode: 'companion',
-        });
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
     } catch (error: any) {
         console.error('Companion mode error:', error);
-        res.status(500).json({ error: 'Failed to process companion query', message: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to process companion query', message: error.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        }
     }
 });
 
@@ -244,7 +256,11 @@ router.post('/character', authenticateToken, async (req: Request, res: Response)
             }
         }
 
-        const response = await handleModeQuery('character_voice', bookId, userQuery, userId, {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const response = await handleModeQuery('character_voice', bookId, userQuery, userId, res, {
             characterId,
             conversationHistory,
         });
@@ -268,15 +284,16 @@ router.post('/character', authenticateToken, async (req: Request, res: Response)
             }
         }
 
-        res.json({
-            answer: response.answerText,
-            citations: response.citations,
-            confidence: response.confidence,
-            mode: 'character_voice',
-        });
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
     } catch (error: any) {
         console.error('Character voice mode error:', error);
-        res.status(500).json({ error: 'Failed to process character query', message: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to process character query', message: error.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        }
     }
 });
 
@@ -293,20 +310,25 @@ router.post('/pov', authenticateToken, async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'bookId, characterIds, and sceneDescription are required' });
         }
 
-        const response = await handleModeQuery('multi_pov', bookId, sceneDescription, userId, {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const response = await handleModeQuery('multi_pov', bookId, sceneDescription, userId, res, {
             characterIds,
             sceneDescription,
         });
 
-        res.json({
-            answer: response.answerText,
-            citations: response.citations,
-            confidence: response.confidence,
-            mode: 'multi_pov',
-        });
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
     } catch (error: any) {
         console.error('Multi-POV mode error:', error);
-        res.status(500).json({ error: 'Failed to process POV query', message: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to process POV query', message: error.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        }
     }
 });
 
@@ -325,20 +347,25 @@ router.post('/motive', authenticateToken, async (req: Request, res: Response) =>
 
         const searchQuery = action || userQuery || `Why did this character do what they did?`;
 
-        const response = await handleModeQuery('motive_decoder', bookId, searchQuery, userId, {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const response = await handleModeQuery('motive_decoder', bookId, searchQuery, userId, res, {
             characterId,
             action,
         });
 
-        res.json({
-            answer: response.answerText,
-            citations: response.citations,
-            confidence: response.confidence,
-            mode: 'motive_decoder',
-        });
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
     } catch (error: any) {
         console.error('Motive decoder mode error:', error);
-        res.status(500).json({ error: 'Failed to process motive query', message: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to process motive query', message: error.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        }
     }
 });
 
@@ -355,20 +382,25 @@ router.post('/whatif', authenticateToken, async (req: Request, res: Response) =>
             return res.status(400).json({ error: 'bookId, characterId, and scenario are required' });
         }
 
-        const response = await handleModeQuery('what_if', bookId, scenario, userId, {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const response = await handleModeQuery('what_if', bookId, scenario, userId, res, {
             characterId,
             scenario,
         });
 
-        res.json({
-            answer: response.answerText,
-            citations: response.citations,
-            confidence: response.confidence,
-            mode: 'what_if',
-        });
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
     } catch (error: any) {
         console.error('What-if mode error:', error);
-        res.status(500).json({ error: 'Failed to process what-if query', message: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to process what-if query', message: error.message });
+        } else {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        }
     }
 });
 

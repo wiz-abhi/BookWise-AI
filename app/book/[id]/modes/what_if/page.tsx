@@ -38,11 +38,25 @@ export default function WhatIfModePage() {
 
     const handleSubmit = async () => {
         if (!selectedChar || !scenario.trim()) return;
-        setLoading(true); setResult(null);
+        setLoading(true); 
+        setResult({ answer: '', citations: [] });
         try {
-            const r = await modeAPI.whatIf({ bookId, characterId: selectedChar.id, scenario: scenario.trim() });
-            setResult({ answer: r.answer, citations: r.citations });
-        } catch { setResult({ answer: 'Failed to explore this path. Try again.', citations: [] }); } finally { setLoading(false); }
+            await modeAPI.whatIf(
+                { bookId, characterId: selectedChar.id, scenario: scenario.trim() },
+                (chunk) => {
+                    setResult(prev => prev ? { ...prev, answer: prev.answer + chunk } : { answer: chunk, citations: [] });
+                },
+                (metadata) => {
+                    if (metadata.citations) {
+                        setResult(prev => prev ? { ...prev, citations: metadata.citations } : { answer: '', citations: metadata.citations });
+                    }
+                }
+            );
+        } catch { 
+            setResult({ answer: 'Failed to explore this path. Try again.', citations: [] }); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
     if (authLoading || loadingChars) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-8 h-8 text-indigo-500 animate-spin" /></div>;

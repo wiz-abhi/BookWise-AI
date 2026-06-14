@@ -38,11 +38,25 @@ export default function MotiveDecoderModePage() {
 
     const handleSubmit = async () => {
         if (!selectedChar || !actionQuery.trim()) return;
-        setLoading(true); setResult(null);
+        setLoading(true); 
+        setResult({ answer: '', citations: [] });
         try {
-            const r = await modeAPI.motiveDecoder({ bookId, characterId: selectedChar.id, action: actionQuery.trim() });
-            setResult({ answer: r.answer, citations: r.citations });
-        } catch { setResult({ answer: 'Failed to analyze. Please try again.', citations: [] }); } finally { setLoading(false); }
+            await modeAPI.motiveDecoder(
+                { bookId, characterId: selectedChar.id, action: actionQuery.trim() },
+                (chunk) => {
+                    setResult(prev => prev ? { ...prev, answer: prev.answer + chunk } : { answer: chunk, citations: [] });
+                },
+                (metadata) => {
+                    if (metadata.citations) {
+                        setResult(prev => prev ? { ...prev, citations: metadata.citations } : { answer: '', citations: metadata.citations });
+                    }
+                }
+            );
+        } catch { 
+            setResult({ answer: 'Failed to analyze. Please try again.', citations: [] }); 
+        } finally { 
+            setLoading(false); 
+        }
     };
 
     if (authLoading || loadingChars) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="w-8 h-8 text-rose-500 animate-spin" /></div>;

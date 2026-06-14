@@ -13,7 +13,7 @@ import { ModeConfigModal } from '@/components/chat/ModeConfigModal';
 export default function CharacterVoiceModePage() {
     const params = useParams();
     const router = useRouter();
-    const { selectedBook, messages, addMessage, clearMessages, isLoading, setIsLoading, selectedCharacter, setSelectedCharacter } = useChatStore();
+    const { selectedBook, messages, addMessage, updateLastMessage, setLastMessageCitations, clearMessages, isLoading, setIsLoading, selectedCharacter, setSelectedCharacter } = useChatStore();
     const { isAuthenticated, loading: authLoading } = useAuth();
 
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -59,25 +59,25 @@ export default function CharacterVoiceModePage() {
 
     const handleSendMessage = async (message: string) => {
         if (!selectedCharacter) return;
+
         addMessage({ role: 'user', content: message });
         setIsLoading(true);
+        addMessage({ role: 'assistant', content: '', citations: [] });
 
         try {
-            const response = await modeAPI.characterVoice({
-                bookId,
-                characterId: selectedCharacter.id,
-                query: message,
-                conversationId,
-            });
-            addMessage({
-                role: 'assistant',
-                content: response.answer,
-                citations: response.citations,
-                confidence: response.confidence,
-            });
+            await modeAPI.characterVoice(
+                {
+                    bookId,
+                    characterId: selectedCharacter.id,
+                    query: message,
+                    conversationId: conversationId || undefined,
+                },
+                (chunk) => updateLastMessage(chunk),
+                (metadata) => { if (metadata.citations) setLastMessageCitations(metadata.citations); }
+            );
         } catch (error) {
             console.error('Character voice error:', error);
-            addMessage({ role: 'assistant', content: "I seem to have lost my voice for a moment. Try again?", confidence: 0 });
+            updateLastMessage("\n\nI seem to have lost my voice for a moment. Try again?");
         } finally {
             setIsLoading(false);
         }

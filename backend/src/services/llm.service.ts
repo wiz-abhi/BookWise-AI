@@ -145,6 +145,76 @@ Confidence should be between 0 and 1, where 1 is completely confident.`;
 }
 
 /**
+ * Generate a streamed RAG response with citations
+ */
+export async function generateStructuredResponseStream(
+    query: string,
+    context: string,
+    citations: Citation[],
+    onChunk: (text: string) => void,
+    systemPrompt?: string,
+    modelName: string = 'gemini-2.5-flash'
+): Promise<RAGResponse> {
+    try {
+        const citationsText = citations
+            .map((c, i) => `[${i + 1}] ${c.bookTitle}, Page ${c.page || 'N/A'}: "${c.excerpt.substring(0, 100)}..."`)
+            .join('\n');
+
+        const prompt = `${systemPrompt || 'You are a helpful AI assistant that answers questions based on provided context.'}
+
+CRITICAL FORMATTING RULES:
+1. Break your response into readable paragraphs separated by empty lines.
+2. Use emojis naturally to make the tone friendly and human-like.
+3. NEVER include raw citation markers like [1] or [2] in your text. The system tracks citations for you.
+
+Context from books:
+${context}
+
+Available Citations:
+${citationsText}
+
+User Question: ${query}
+
+Please answer the user question directly based on the context. Do NOT use JSON formatting, just provide the answer text.`;
+
+        const result = await ai.models.generateContentStream({
+            model: modelName,
+            contents: prompt,
+        });
+
+        let fullText = '';
+        for await (const chunk of result) {
+            if (chunk.text) {
+                fullText += chunk.text;
+                onChunk(chunk.text);
+            }
+        }
+
+        // We assume all provided citations are relevant for the streamed text
+        return {
+            answerText: fullText,
+            citations: citations,
+            confidence: 0.8,
+        };
+    } catch (error: any) {
+        console.error('Structured response stream generation error:', error);
+
+        if (modelName === 'gemini-2.5-flash') {
+            console.warn('⚠️ Primary model failed, trying fallback stream...');
+            return generateStructuredResponseStream(query, context, citations, onChunk, systemPrompt, 'gemini-2.5-flash-lite');
+        }
+
+        const fallbackMsg = "I apologize, but I'm currently experiencing high demand. Please try again later.";
+        onChunk(fallbackMsg);
+        return {
+            answerText: fallbackMsg,
+            citations,
+            confidence: 0.0,
+        };
+    }
+}
+
+/**
  * FAST Intent Classification
  * Determines if a query requires RAG (SEARCH) or just LLM (CHAT)
  */

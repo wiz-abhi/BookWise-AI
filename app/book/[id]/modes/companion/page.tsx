@@ -23,7 +23,9 @@ const QUICK_ACTIONS = [
 export default function CompanionModePage() {
     const params = useParams();
     const router = useRouter();
-    const { selectedBook, messages, addMessage, clearMessages, isLoading, setIsLoading, readingProgress, setReadingProgress } = useChatStore();
+    const {
+        selectedBook, messages, addMessage, updateLastMessage, setLastMessageCitations, clearMessages, isLoading, setIsLoading, readingProgress, setReadingProgress
+    } = useChatStore();
     const { isAuthenticated, loading: authLoading } = useAuth();
 
     const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -74,26 +76,28 @@ export default function CompanionModePage() {
         addMessage({ role: 'user', content: message });
         setIsLoading(true);
 
-        try {
-            const response = await modeAPI.companion({
-                bookId,
-                query: message,
-                conversationId,
-            });
+        // Add empty assistant message that will be populated via stream
+        addMessage({ role: 'assistant', content: '', citations: [] });
 
-            addMessage({
-                role: 'assistant',
-                content: response.answer,
-                citations: response.citations,
-                confidence: response.confidence,
-            });
+        try {
+            await modeAPI.companion(
+                {
+                    bookId,
+                    query: message,
+                    conversationId: conversationId || undefined,
+                },
+                (chunk) => {
+                    updateLastMessage(chunk);
+                },
+                (metadata) => {
+                    if (metadata.citations) {
+                        setLastMessageCitations(metadata.citations);
+                    }
+                }
+            );
         } catch (error) {
             console.error('Companion mode error:', error);
-            addMessage({
-                role: 'assistant',
-                content: "Oops, something went wrong on my end. Try asking again? 😅",
-                confidence: 0,
-            });
+            updateLastMessage("\n\nOops, something went wrong on my end. Try asking again? 😅");
         } finally {
             setIsLoading(false);
         }

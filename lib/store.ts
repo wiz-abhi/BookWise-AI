@@ -47,6 +47,8 @@ interface ChatStore {
     // Messages
     messages: Message[];
     addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
+    updateLastMessage: (content: string) => void;
+    setLastMessageCitations: (citations: Citation[]) => void;
     clearMessages: () => void;
 
     // Current conversation
@@ -96,6 +98,26 @@ export const useChatStore = create<ChatStore>((set) => ({
                 },
             ],
         })),
+    updateLastMessage: (content) =>
+        set((state) => {
+            if (state.messages.length === 0) return state;
+            const newMessages = [...state.messages];
+            newMessages[newMessages.length - 1] = {
+                ...newMessages[newMessages.length - 1],
+                content: newMessages[newMessages.length - 1].content + content,
+            };
+            return { messages: newMessages };
+        }),
+    setLastMessageCitations: (citations) =>
+        set((state) => {
+            if (state.messages.length === 0) return state;
+            const newMessages = [...state.messages];
+            newMessages[newMessages.length - 1] = {
+                ...newMessages[newMessages.length - 1],
+                citations,
+            };
+            return { messages: newMessages };
+        }),
     clearMessages: () => set({ messages: [] }),
 
     // Conversation

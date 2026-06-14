@@ -107,55 +107,118 @@ export const libraryAPI = {
 // ============================================================
 // NEW: Mode API — Character exploration experience modes
 // ============================================================
+
+async function handleModeStream(
+    endpoint: string,
+    data: any,
+    onChunk: (text: string) => void,
+    onMetadata: (metadata: any) => void
+) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        if (response.status === 401 && typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login';
+            }
+        }
+        throw new Error(`Failed to query ${endpoint}`);
+    }
+
+    if (!response.body) throw new Error('ReadableStream not yet supported in this browser.');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Split by double newline which SSE uses to separate events
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || ''; // Keep the last incomplete part in the buffer
+
+        for (const part of parts) {
+            if (part.startsWith('data: ')) {
+                try {
+                    const jsonStr = part.substring(6); // remove 'data: '
+                    const parsed = JSON.parse(jsonStr);
+
+                    if (parsed.type === 'metadata') {
+                        onMetadata(parsed);
+                    } else if (parsed.type === 'chunk') {
+                        onChunk(parsed.text);
+                    } else if (parsed.type === 'error') {
+                        throw new Error(parsed.message);
+                    } else if (parsed.type === 'done') {
+                        // Stream is finished
+                    }
+                } catch (e) {
+                    console.error('Failed to parse SSE JSON:', e);
+                }
+            }
+        }
+    }
+}
+
 export const modeAPI = {
     /** Companion mode — reading buddy aware of your current page */
-    companion: async (data: { bookId: string; query: string; conversationId?: string }) => {
-        const response = await apiRequest('/mode/companion', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) throw new Error('Failed to query companion mode');
-        return response.json();
+    companion: async (
+        data: { bookId: string; query: string; conversationId?: string },
+        onChunk: (text: string) => void,
+        onMetadata: (metadata: any) => void
+    ) => {
+        return handleModeStream('/mode/companion', data, onChunk, onMetadata);
     },
 
     /** Character Voice mode — talk to a character in-character */
-    characterVoice: async (data: { bookId: string; characterId: string; query: string; conversationId?: string }) => {
-        const response = await apiRequest('/mode/character', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) throw new Error('Failed to query character voice mode');
-        return response.json();
+    characterVoice: async (
+        data: { bookId: string; characterId: string; query: string; conversationId?: string },
+        onChunk: (text: string) => void,
+        onMetadata: (metadata: any) => void
+    ) => {
+        return handleModeStream('/mode/character', data, onChunk, onMetadata);
     },
 
     /** Multi-POV Replay — scene from multiple character perspectives */
-    multiPOV: async (data: { bookId: string; characterIds: string[]; sceneDescription: string }) => {
-        const response = await apiRequest('/mode/pov', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) throw new Error('Failed to query multi-POV mode');
-        return response.json();
+    multiPOV: async (
+        data: { bookId: string; characterIds: string[]; sceneDescription: string },
+        onChunk: (text: string) => void,
+        onMetadata: (metadata: any) => void
+    ) => {
+        return handleModeStream('/mode/pov', data, onChunk, onMetadata);
     },
 
     /** Motive Decoder — deep character psychology analysis */
-    motiveDecoder: async (data: { bookId: string; characterId: string; action?: string; query?: string }) => {
-        const response = await apiRequest('/mode/motive', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) throw new Error('Failed to query motive decoder mode');
-        return response.json();
+    motiveDecoder: async (
+        data: { bookId: string; characterId: string; action?: string; query?: string },
+        onChunk: (text: string) => void,
+        onMetadata: (metadata: any) => void
+    ) => {
+        return handleModeStream('/mode/motive', data, onChunk, onMetadata);
     },
 
     /** What-If Explorer — alternate paths grounded in character */
-    whatIf: async (data: { bookId: string; characterId: string; scenario: string }) => {
-        const response = await apiRequest('/mode/whatif', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) throw new Error('Failed to query what-if mode');
-        return response.json();
+    whatIf: async (
+        data: { bookId: string; characterId: string; scenario: string },
+        onChunk: (text: string) => void,
+        onMetadata: (metadata: any) => void
+    ) => {
+        return handleModeStream('/mode/whatif', data, onChunk, onMetadata);
     },
 
     /** Get all extracted characters for a book */
